@@ -191,7 +191,7 @@ export default function CreatePostPage() {
           className="text-center mb-6"
         >
           <Title level={2} className="mb-2">Create Post</Title>
-          <Text type="secondary">Share what's happening in your city</Text>
+          <Text type="secondary">Share what&apos;s happening in your city</Text>
         </motion.div>
 
         {/* Create Post Form */}

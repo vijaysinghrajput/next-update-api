@@ -153,9 +153,9 @@ export default function EditProfilePage() {
               customRequest={async ({ file, onSuccess, onError }) => {
                 try {
                   const url = await handleUpload(file as File)
-                  if (url) onSuccess && onSuccess({ url } as any)
+                  if (url && onSuccess) onSuccess({ url } as any)
                 } catch (e) {
-                  onError && onError(e as any)
+                  if (onError) onError(e as any)
                 }
               }}
             >

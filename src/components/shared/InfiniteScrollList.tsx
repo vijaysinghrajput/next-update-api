@@ -140,7 +140,7 @@ export default function InfiniteScrollList<T extends { id: string }>({
           animate={{ opacity: 1 }}
           className="text-center py-6 text-gray-400 text-sm"
         >
-          You've reached the end 🎉
+          You&apos;ve reached the end 🎉
         </motion.div>
       )}
 

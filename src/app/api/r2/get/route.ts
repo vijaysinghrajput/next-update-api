@@ -25,7 +25,6 @@ export async function GET(req: NextRequest) {
     if (!key) return new Response('key is required', { status: 400 })
 
     const res = await r2Client.send(new GetObjectCommand({ Bucket: BUCKET_NAME, Key: key }))
-    // @ts-ignore - Body is a stream
     const body = res.Body as ReadableStream
     const headers = new Headers()
     if (res.ContentType) headers.set('Content-Type', res.ContentType)

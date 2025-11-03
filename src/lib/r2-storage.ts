@@ -188,10 +188,23 @@ export function getProxiedImageUrl(url: string | null | undefined): string | nul
   if (url.includes('/api/r2/get')) return url
   
   // Extract the key from R2 public URL
-  const r2PublicUrl = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://ghar-khojo.r2.dev'
-  if (url.startsWith(r2PublicUrl)) {
-    const key = url.replace(r2PublicUrl + '/', '')
-    return `/api/r2/get?key=${encodeURIComponent(key)}`
+  // Check multiple R2 URL patterns
+  const r2Patterns = [
+    'https://ghar-khojo.r2.dev/',
+    'https://pub-',
+    '.r2.dev/',
+    'r2.cloudflarestorage.com/',
+  ]
+  
+  for (const pattern of r2Patterns) {
+    if (url.includes(pattern)) {
+      // Extract everything after the domain as the key
+      const urlObj = new URL(url)
+      const key = urlObj.pathname.substring(1) // Remove leading slash
+      const proxiedUrl = `/api/r2/get?key=${encodeURIComponent(key)}`
+      console.log('🖼️ Proxying R2 image:', url, '→', proxiedUrl)
+      return proxiedUrl
+    }
   }
   
   // If it's already a relative URL or external URL, return as is

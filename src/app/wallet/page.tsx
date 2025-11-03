@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { Card, Typography, Button, Space, List, Tag, Modal, Upload, Form, InputNumber, Input, message, Spin, Alert } from 'antd'
+import { Card, Typography, Button, Space, List, Tag, Modal, Upload, Form, InputNumber, Input, message, Spin, Alert, App } from 'antd'
 import { 
   WalletOutlined, 
   PlusOutlined, 
@@ -17,7 +17,7 @@ import { usePathname } from 'next/navigation'
 import { useApp } from '../../lib/providers'
 import { supabaseClient } from '../../lib/supabase-client'
 import { formatNumber, formatRelativeTime, POINTS_CONFIG } from '../../lib/utils'
-import { uploadToR2, generateFileKey } from '../../lib/r2-storage'
+import { uploadToR2, generateFileKey, getProxiedImageUrl } from '../../lib/r2-storage'
 
 const { Title, Text } = Typography
 
@@ -40,6 +40,7 @@ interface PaymentRequest {
 
 export default function WalletPage() {
   const { user, refreshUser, isLoading } = useApp()
+  const { message: messageApi } = App.useApp()
   const pathname = usePathname()
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>([])
@@ -110,7 +111,7 @@ export default function WalletPage() {
       console.debug('[BuyPoints] Form values', { values, hasFile: !!file })
       
       if (!file) {
-        message.error('Please upload payment screenshot')
+        messageApi.error('Please upload payment screenshot')
         return
       }
 
@@ -120,7 +121,7 @@ export default function WalletPage() {
       console.debug('[BuyPoints] Upload result', result)
 
       if (!result.success) {
-        message.error('Failed to upload screenshot')
+        messageApi.error('Failed to upload screenshot')
         return
       }
 
@@ -137,11 +138,11 @@ export default function WalletPage() {
 
       console.debug('[BuyPoints] Insert response', { insertData, error })
       if (error) {
-        message.error('Failed to submit payment request')
+        messageApi.error('Failed to submit payment request')
         return
       }
 
-      message.success('Payment request submitted! We will verify shortly.')
+      messageApi.success('Payment request submitted! We will verify shortly.')
       setShowBuyPoints(false)
       form.resetFields()
       // Refresh lists without full reload
@@ -163,7 +164,7 @@ export default function WalletPage() {
       setPaymentRequests(paymentsData || [])
     } catch (error) {
       console.error('[BuyPoints] Submit error', error)
-      message.error('Failed to submit payment request')
+      messageApi.error('Failed to submit payment request')
     } finally {
       setBuyPointsLoading(false)
     }
@@ -171,12 +172,12 @@ export default function WalletPage() {
 
   const handleBlueTick = async () => {
     if (!user?.is_verified) {
-      message.warning('You need to complete KYC verification first')
+      messageApi.warning('You need to complete KYC verification first')
       return
     }
 
     if (user.points_balance < POINTS_CONFIG.BLUE_TICK_COST) {
-      message.warning('Insufficient points. You need 2000 points for blue tick.')
+      messageApi.warning('Insufficient points. You need 2000 points for blue tick.')
       return
     }
 
@@ -205,11 +206,11 @@ export default function WalletPage() {
 
       if (profileError) throw profileError
 
-      message.success('Blue tick purchased successfully! 🎉')
+      messageApi.success('Blue tick purchased successfully! 🎉')
       setShowBlueTick(false)
       await refreshUser()
     } catch (error) {
-      message.error('Failed to purchase blue tick')
+      messageApi.error('Failed to purchase blue tick')
     } finally {
       setBlueTickLoading(false)
     }

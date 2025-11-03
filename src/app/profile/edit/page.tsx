@@ -1,10 +1,10 @@
 'use client'
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { Button, Form, InputNumber, message, Radio, Select, Upload, Avatar, Card, Space } from 'antd'
+import { Button, Form, InputNumber, Radio, Select, Upload, Avatar as AntAvatar, Card, Space, App } from 'antd'
 import { LoadingOutlined, UploadOutlined } from '@ant-design/icons'
 import { supabaseClient } from '@/lib/supabase-client'
-import { generateFileKey, uploadToR2, validateFileSize, validateMediaFile } from '@/lib/r2-storage'
+import { generateFileKey, uploadToR2, validateFileSize, validateMediaFile, getProxiedImageUrl } from '@/lib/r2-storage'
 import { useRouter } from 'next/navigation'
 import { useApp } from '@/lib/providers'
 
@@ -13,6 +13,7 @@ type CityOption = { id: string; name: string }
 export default function EditProfilePage() {
   const router = useRouter()
   const { user, selectedCity, setSelectedCity, refreshUser } = useApp()
+  const { message } = App.useApp()
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
   const [cities, setCities] = useState<CityOption[]>([])
@@ -144,9 +145,9 @@ export default function EditProfilePage() {
       <Card title="Edit Profile">
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           <Space align="center">
-            <Avatar size={64} src={avatarUrl || undefined}>
+            <AntAvatar size={64} src={getProxiedImageUrl(avatarUrl) || undefined}>
               {!avatarUrl && (user?.name?.[0] || 'U')}
-            </Avatar>
+            </AntAvatar>
             <Upload
               accept="image/*"
               showUploadList={false}

@@ -61,7 +61,7 @@ export default function LinkPreview({ preview, compact = false }: LinkPreviewPro
           hoverable
           onClick={handleClick}
           className="overflow-hidden rounded-xl border border-gray-200 cursor-pointer"
-          bodyStyle={{ padding: 0 }}
+          styles={{ body: { padding: 0 } }}
         >
           <div className="relative aspect-video w-full bg-black">
             <Image
@@ -105,7 +105,7 @@ export default function LinkPreview({ preview, compact = false }: LinkPreviewPro
           hoverable
           onClick={handleClick}
           className="overflow-hidden rounded-xl border border-gray-200 cursor-pointer"
-          bodyStyle={{ padding: 0 }}
+          styles={{ body: { padding: 0 } }}
         >
           <div className="relative aspect-video w-full bg-gray-100">
             <Image

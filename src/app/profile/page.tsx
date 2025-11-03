@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { Avatar, Button, Typography, Space, Tabs, Card, Tag, Modal, Upload, Form, Input, Select, message } from 'antd'
+import { Avatar, Button, Typography, Space, Tabs, Card, Tag, Modal, Upload, Form, Input, Select, message, App } from 'antd'
 import { 
   UserOutlined, 
   EditOutlined, 
@@ -18,7 +18,7 @@ import { useApp } from '../../lib/providers'
 import { useRouter, usePathname } from 'next/navigation'
 import { supabaseClient } from '../../lib/supabase-client'
 import { formatNumber } from '../../lib/utils'
-import { uploadToR2, generateFileKey } from '../../lib/r2-storage'
+import { uploadToR2, generateFileKey, getProxiedImageUrl } from '../../lib/r2-storage'
 
 const { Title, Text } = Typography
 // Removed deprecated TabPane import
@@ -26,6 +26,7 @@ const { Option } = Select
 
 export default function ProfilePage() {
   const { user, refreshUser, isLoading } = useApp()
+  const { message: messageApi } = App.useApp()
   const router = useRouter()
   const pathname = usePathname()
   const [posts, setPosts] = useState<any[]>([])
@@ -139,11 +140,11 @@ export default function ProfilePage() {
 
       if (error) throw error
 
-      message.success('Profile updated successfully!')
+      messageApi.success('Profile updated successfully!')
       setShowEditProfile(false)
       await refreshUser()
     } catch (error) {
-      message.error('Failed to update profile')
+      messageApi.error('Failed to update profile')
     } finally {
       setLoading(false)
     }
@@ -157,7 +158,7 @@ export default function ProfilePage() {
       console.debug('[KYC] Selected files', { front: !!frontFile, back: !!backFile, values })
 
       if (!frontFile || !backFile) {
-        message.error('Please upload both front and back of Aadhar card')
+        messageApi.error('Please upload both front and back of Aadhar card')
         return
       }
 
@@ -172,7 +173,7 @@ export default function ProfilePage() {
       console.debug('[KYC] Upload results', { frontResult, backResult })
 
       if (!frontResult.success || !backResult.success) {
-        message.error('Failed to upload documents')
+        messageApi.error('Failed to upload documents')
         return
       }
 
@@ -190,13 +191,13 @@ export default function ProfilePage() {
       console.debug('[KYC] Insert response', { insertData, error })
       if (error) throw error
 
-      message.success('KYC submitted successfully! We will review it shortly.')
+      messageApi.success('KYC submitted successfully! We will review it shortly.')
       setShowKyc(false)
       kycForm.resetFields()
       setKycStatus('pending')
     } catch (error) {
       console.error('[KYC] Submit error', error)
-      message.error('Failed to submit KYC')
+      messageApi.error('Failed to submit KYC')
     } finally {
       setLoading(false)
     }
@@ -213,7 +214,7 @@ export default function ProfilePage() {
       })
     } else {
       navigator.clipboard.writeText(referralLink)
-      message.success('Referral link copied to clipboard!')
+      messageApi.success('Referral link copied to clipboard!')
     }
   }
 
@@ -232,7 +233,7 @@ export default function ProfilePage() {
           <div className="text-center">
             <div className="relative inline-block mb-4">
               <Avatar
-                src={user.avatar_url}
+                src={getProxiedImageUrl(user.avatar_url)}
                 size={100}
                 className="border-4 border-white shadow-lg"
               >

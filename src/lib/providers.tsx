@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { ConfigProvider, theme } from 'antd'
+import { ConfigProvider, theme, App } from 'antd'
 import { usePathname } from 'next/navigation'
 import { supabaseClient } from './supabase-client'
 import { Profile } from './supabase'
@@ -224,11 +224,13 @@ export function Providers({ children }: ProvidersProps) {
   return (
     <QueryClientProvider client={queryClient}>
       <ConfigProvider theme={themeConfig}>
-        <AppContext.Provider value={appContextValue}>
-          <RouteChangeHandler>
-            {children}
-          </RouteChangeHandler>
-        </AppContext.Provider>
+        <App>
+          <AppContext.Provider value={appContextValue}>
+            <RouteChangeHandler>
+              {children}
+            </RouteChangeHandler>
+          </AppContext.Provider>
+        </App>
       </ConfigProvider>
     </QueryClientProvider>
   )

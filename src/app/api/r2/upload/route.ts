@@ -90,6 +90,7 @@ export async function POST(req: NextRequest) {
 
     await r2Client.send(command)
 
+    // Return direct R2 URL (bucket is publicly accessible)
     const resultUrl = `${PUBLIC_URL}/${key}`
     console.log('[R2 Upload] Success:', resultUrl)
 

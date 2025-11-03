@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Button, Upload, Input, Select, Card, Typography, message, Form } from 'antd'
+import { Button, Upload, Input, Select, Card, Typography, message, Form, App } from 'antd'
 import { PlusOutlined, SendOutlined, EnvironmentOutlined } from '@ant-design/icons'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
@@ -22,6 +22,7 @@ interface City {
 
 export default function CreatePostPage() {
   const { user, selectedCity, isLoading } = useApp()
+  const { message: messageApi } = App.useApp()
   const router = useRouter()
   const [form] = Form.useForm()
   const [cities, setCities] = useState<City[]>([])
@@ -61,7 +62,7 @@ export default function CreatePostPage() {
         const sizeValidation = validateFileSize(Buffer.from([]), 10) // 10MB limit
         
         if (!validation.isValid) {
-          message.error(`${file.name}: ${validation.error}`)
+          messageApi.error(`${file.name}: ${validation.error}`)
           return false
         }
         
@@ -101,18 +102,18 @@ export default function CreatePostPage() {
         .filter(Boolean)
       const wordCount = words.length
       if (wordCount > 2000) {
-        message.error('Content exceeds 2000 words limit')
+        messageApi.error('Content exceeds 2000 words limit')
         return
       }
       if ((!content || content.trim().length === 0) && fileList.length === 0) {
-        message.error('Write something or add at least one image/video')
+        messageApi.error('Write something or add at least one image/video')
         return
       }
 
       // Get city ID
       const selectedCityData = cities.find((city: any) => city.name === (values.city || selectedCity))
       if (!selectedCityData) {
-        message.error('Please select a valid city')
+        messageApi.error('Please select a valid city')
         return
       }
       console.debug('[CreatePost] City selected', selectedCityData)
@@ -132,7 +133,7 @@ export default function CreatePostPage() {
         console.debug('[CreatePost] Upload results', uploadResults)
         const failedUploads = uploadResults.filter(result => !result.success)
         if (failedUploads.length > 0) {
-          message.error('Some files failed to upload. Please try again.')
+          messageApi.error('Some files failed to upload. Please try again.')
           return
         }
         mediaUrls = uploadResults.map(result => result.url!).filter(Boolean)
@@ -158,15 +159,15 @@ export default function CreatePostPage() {
 
       console.debug('[CreatePost] Insert response', { inserted, error })
       if (error) {
-        message.error('Failed to create post')
+        messageApi.error('Failed to create post')
         return
       }
 
-      message.success('Post created successfully! 🎉')
+      messageApi.success('Post created successfully! 🎉')
       router.push('/')
     } catch (error) {
       console.error('[CreatePost] Submit error', error)
-      message.error('Failed to create post')
+      messageApi.error('Failed to create post')
     } finally {
       setLoading(false)
     }

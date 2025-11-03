@@ -282,12 +282,10 @@ export default function PostCard({ post, currentUserId, onUpdate }: PostCardProp
           {post.media_urls.length === 1 ? (
             <div className="relative aspect-square">
               {post.media_type === 'image' ? (
-                <Image
+                <img
                   src={getProxiedImageUrl(post.media_urls[0]) || post.media_urls[0]}
                   alt="Post media"
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 768px) 100vw, 600px"
+                  className="w-full h-full object-cover"
                 />
               ) : (
                 <video
@@ -306,12 +304,10 @@ export default function PostCard({ post, currentUserId, onUpdate }: PostCardProp
               {post.media_urls.map((url, index) => (
                 <div key={index} className="relative aspect-square">
                   {post.media_type === 'image' ? (
-                    <Image
+                    <img
                       src={getProxiedImageUrl(url) || url}
                       alt={`Post media ${index + 1}`}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 768px) 100vw, 600px"
+                      className="w-full h-full object-cover"
                     />
                   ) : (
                     <video

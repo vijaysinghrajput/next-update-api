@@ -48,9 +48,8 @@ export async function uploadToR2(
     }
 
     const data = await res.json().catch(() => ({}))
-    // Prefer serving via secure proxy to avoid public bucket configuration
-    const viewUrl = `/api/r2/get?key=${encodeURIComponent(data.key)}`
-    return { success: true, url: viewUrl, key: data.key }
+    // Use the direct R2 public URL returned from the API
+    return { success: true, url: data.url, key: data.key }
   } catch (error) {
     console.error('R2 upload error:', error)
     return { success: false, error: error instanceof Error ? error.message : 'Upload failed' }

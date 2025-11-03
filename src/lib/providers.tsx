@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ConfigProvider, theme } from 'antd'
+import { usePathname } from 'next/navigation'
 import { supabaseClient } from './supabase-client'
 import { Profile } from './supabase'
 
@@ -10,10 +11,10 @@ import { Profile } from './supabase'
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // Data stays fresh for 5 minutes
-      gcTime: 10 * 60 * 1000, // Keep unused data in cache for 10 minutes (formerly cacheTime)
+      staleTime: 2 * 60 * 1000, // Data stays fresh for 2 minutes (reduced from 5)
+      gcTime: 10 * 60 * 1000, // Keep unused data in cache for 10 minutes
       refetchOnWindowFocus: true, // Refetch when window regains focus
-      refetchOnMount: true, // Refetch when component mounts
+      refetchOnMount: 'always', // Always refetch on mount (was just true)
       refetchOnReconnect: true, // Refetch when reconnecting
       retry: 1, // Retry failed requests once
     },
@@ -70,6 +71,19 @@ const themeConfig = {
 
 interface ProvidersProps {
   children: React.ReactNode
+}
+
+// Route change handler component
+function RouteChangeHandler({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
+  
+  useEffect(() => {
+    // Invalidate all queries when route changes (except for static assets)
+    console.log('🔄 Route changed to:', pathname)
+    queryClient.invalidateQueries()
+  }, [pathname])
+  
+  return <>{children}</>
 }
 
 export function Providers({ children }: ProvidersProps) {
@@ -183,7 +197,9 @@ export function Providers({ children }: ProvidersProps) {
     <QueryClientProvider client={queryClient}>
       <ConfigProvider theme={themeConfig}>
         <AppContext.Provider value={appContextValue}>
-          {children}
+          <RouteChangeHandler>
+            {children}
+          </RouteChangeHandler>
         </AppContext.Provider>
       </ConfigProvider>
     </QueryClientProvider>

@@ -68,21 +68,25 @@ export const authProvider: AuthProvider = {
 
       if (data.user) {
         // Immediately confirm email for development
-        await supabaseClient.rpc('confirm_user_email', {
-          user_id: data.user.id
-        }).catch(() => {
+        try {
+          await supabaseClient.rpc('confirm_user_email', {
+            user_id: data.user.id
+          })
+        } catch (error) {
           // If RPC doesn't exist, continue anyway
           console.log('Email confirmation RPC not available, continuing...')
-        })
+        }
 
         // Handle referral bonus if user provided referral code
         if (referralCode) {
-          await supabaseClient.rpc('handle_referral_bonus', {
-            user_id: data.user.id,
-            referral_code: referralCode,
-          }).catch(() => {
+          try {
+            await supabaseClient.rpc('handle_referral_bonus', {
+              user_id: data.user.id,
+              referral_code: referralCode,
+            })
+          } catch (error) {
             console.log('Referral bonus RPC not available, continuing...')
-          })
+          }
         }
 
         // Automatically sign in the user after registration

@@ -202,7 +202,7 @@ export function getProxiedImageUrl(url: string | null | undefined): string | nul
       const urlObj = new URL(url)
       const key = urlObj.pathname.substring(1) // Remove leading slash
       const proxiedUrl = `/api/r2/get?key=${encodeURIComponent(key)}`
-      console.log('🖼️ Proxying R2 image:', url, '→', proxiedUrl)
+      // console.log('🖼️ Proxying R2 image:', url, '→', proxiedUrl)
       return proxiedUrl
     }
   }

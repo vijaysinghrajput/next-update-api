@@ -17,6 +17,7 @@ import { useApp } from '../../lib/providers'
 import { supabaseClient } from '../../lib/supabase-client'
 import { formatNumber } from '../../lib/utils'
 import PostCard from '../../components/posts/PostCard'
+import { getProxiedImageUrl } from '../../lib/r2-storage'
 
 const { Text } = Typography
 
@@ -328,7 +329,7 @@ export default function ExplorePage() {
                         <Space size={12}>
                           <Avatar
                             size={48}
-                            src={suggestedUser.avatar_url || `https://ui-avatars.com/api/?name=${suggestedUser.name}&background=007AFF&color=fff`}
+                            src={getProxiedImageUrl(suggestedUser.avatar_url) || `https://ui-avatars.com/api/?name=${suggestedUser.name}&background=007AFF&color=fff`}
                             icon={<UserAddOutlined />}
                           />
                           <div>

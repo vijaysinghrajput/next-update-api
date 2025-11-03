@@ -400,7 +400,7 @@ export default function ProfilePage() {
                       posts.map((post: any) => (
                         <div key={post.id} className="aspect-square bg-gray-200 rounded-lg overflow-hidden">
                           {post.media_urls?.length > 0 && (
-                            <img src={post.media_urls[0]} alt="Post" className="w-full h-full object-cover" />
+                            <img src={getProxiedImageUrl(post.media_urls[0]) || post.media_urls[0]} alt="Post" className="w-full h-full object-cover" />
                           )}
                         </div>
                       ))

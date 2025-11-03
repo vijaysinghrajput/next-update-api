@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Avatar, Button, Typography, Space, Badge, Carousel, Modal, Input, message, Spin } from 'antd'
+import { Avatar as AntAvatar, Button, Typography, Space, Badge, Carousel, Modal, Input, message, Spin } from 'antd'
 import { 
   HeartOutlined, 
   HeartFilled, 
@@ -21,6 +21,7 @@ import { extractUrls, getLinkPreview, LinkPreviewData } from '../../utils/linkPr
 import LinkPreview from '../shared/LinkPreview'
 import LinkifiedText from '../shared/LinkifiedText'
 import { getProxiedImageUrl } from '../../lib/r2-storage'
+import { Avatar } from '../shared/Avatar'
 
 const { Text, Paragraph } = Typography
 
@@ -74,6 +75,10 @@ export default function PostCard({ post, currentUserId, onUpdate }: PostCardProp
   const [loadingLike, setLoadingLike] = useState(false)
   const [loadingComments, setLoadingComments] = useState(false)
   const [linkPreviews, setLinkPreviews] = useState<LinkPreviewData[]>([])
+  const [isExpanded, setIsExpanded] = useState(false)
+  
+  // Character limit for "Read More"
+  const CAPTION_LIMIT = 150
 
   // Extract and generate link previews from caption
   useEffect(() => {
@@ -219,13 +224,13 @@ export default function PostCard({ post, currentUserId, onUpdate }: PostCardProp
       {/* Header */}
       <div className="flex items-center justify-between p-4 pb-2">
         <Link href={`/user/${post.user_id}`} className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
-          <Avatar
-            src={post.profiles.avatar_url}
+          <AntAvatar
+            src={getProxiedImageUrl(post.profiles.avatar_url)}
             size={40}
             className="border-2 border-gray-100"
           >
             {post.profiles.name[0]?.toUpperCase()}
-          </Avatar>
+          </AntAvatar>
           
           <div>
             <div className="flex items-center space-x-1">
@@ -261,9 +266,47 @@ export default function PostCard({ post, currentUserId, onUpdate }: PostCardProp
       {/* Caption */}
       {post.caption && (
         <div className="px-4 pb-2">
-          <Paragraph className="mb-0 text-gray-800 leading-relaxed">
-            <LinkifiedText text={post.caption} />
-          </Paragraph>
+          <div className="text-gray-800 leading-relaxed">
+            <AnimatePresence mode="wait">
+              {isExpanded ? (
+                <motion.div
+                  key="expanded"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <LinkifiedText text={post.caption} />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="collapsed"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <LinkifiedText 
+                    text={
+                      post.caption.length > CAPTION_LIMIT
+                        ? post.caption.slice(0, CAPTION_LIMIT) + '...'
+                        : post.caption
+                    } 
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+            
+            {post.caption.length > CAPTION_LIMIT && (
+              <motion.button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="text-gray-500 hover:text-gray-700 font-medium text-sm mt-1 transition-colors active:scale-95"
+                whileTap={{ scale: 0.95 }}
+              >
+                {isExpanded ? 'See less' : 'See more'}
+              </motion.button>
+            )}
+          </div>
         </div>
       )}
 
@@ -378,9 +421,9 @@ export default function PostCard({ post, currentUserId, onUpdate }: PostCardProp
 
         {/* Quick Comment */}
         <div className="flex items-center space-x-2">
-          <Avatar size={24} src={post.profiles.avatar_url}>
+          <AntAvatar size={24} src={getProxiedImageUrl(post.profiles.avatar_url)}>
             {post.profiles.name[0]?.toUpperCase()}
-          </Avatar>
+          </AntAvatar>
           <div className="flex-1 flex items-center space-x-2">
             <Input
               placeholder="Add a comment..."
@@ -446,13 +489,13 @@ export default function PostCard({ post, currentUserId, onUpdate }: PostCardProp
                   >
                     <div className="flex space-x-3">
                       {/* Avatar */}
-                      <Avatar
-                        src={commentItem.profiles?.avatar_url}
+                      <AntAvatar
+                        src={getProxiedImageUrl(commentItem.profiles?.avatar_url)}
                         size={36}
                         className="flex-shrink-0 border border-gray-200"
                       >
                         {commentItem.profiles?.name?.[0]?.toUpperCase()}
-                      </Avatar>
+                      </AntAvatar>
 
                       {/* Comment Content */}
                       <div className="flex-1 min-w-0">
@@ -489,9 +532,9 @@ export default function PostCard({ post, currentUserId, onUpdate }: PostCardProp
         {/* Comment Input - Fixed at bottom */}
         <div className="sticky bottom-0 bg-white border-t border-gray-200 p-3">
           <div className="flex items-center space-x-2">
-            <Avatar size={32} src={post.profiles.avatar_url}>
+            <AntAvatar size={32} src={getProxiedImageUrl(post.profiles.avatar_url)}>
               {post.profiles.name[0]?.toUpperCase()}
-            </Avatar>
+            </AntAvatar>
             <div className="flex-1 flex items-center space-x-2">
               <Input
                 placeholder="Add a comment..."

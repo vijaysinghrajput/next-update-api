@@ -7,6 +7,7 @@ import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
 import { supabaseClient } from '../../../lib/supabase-client'
 import { isAdmin } from '../../../lib/utils'
 import AdminLayout from '../../../components/layout/AdminLayout'
+import { getProxiedImageUrl } from '../../../lib/r2-storage'
 
 const { Title, Text } = Typography
 
@@ -99,7 +100,7 @@ export default function AdminKycPage() {
       key: 'user',
       render: (record: KycRow) => (
         <div className="flex items-center space-x-2">
-          <Avatar src={record.profiles?.avatar_url || undefined} size="small">
+          <Avatar src={getProxiedImageUrl(record.profiles?.avatar_url)} size="small">
             {record.profiles?.name?.[0]?.toUpperCase()}
           </Avatar>
           <Text strong>{record.profiles?.name}</Text>

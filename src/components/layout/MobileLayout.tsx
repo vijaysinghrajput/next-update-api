@@ -19,6 +19,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../../lib/providers'
 import { formatNumber } from '../../lib/utils'
 import { supabaseClient } from '../../lib/supabase-client'
+import { getProxiedImageUrl } from '../../lib/r2-storage'
 
 interface MobileLayoutProps {
   children: React.ReactNode
@@ -142,7 +143,7 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
             >
               <div className="flex items-center cursor-pointer">
                 <Avatar 
-                  src={user?.avatar_url} 
+                  src={getProxiedImageUrl(user?.avatar_url)}
                   size={32}
                   className="border-2 border-primary"
                 >

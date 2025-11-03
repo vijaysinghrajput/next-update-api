@@ -17,6 +17,7 @@ import { useApp } from '@/lib/providers'
 import { supabaseClient } from '@/lib/supabase-client'
 import { formatNumber } from '@/lib/utils'
 import PostCard from '@/components/posts/PostCard'
+import { getProxiedImageUrl } from '@/lib/r2-storage'
 
 interface UserProfile {
   id: string
@@ -282,7 +283,7 @@ export default function UserProfilePage() {
         <div className="flex items-start space-x-4 mb-4">
           {/* Avatar */}
           <Avatar
-            src={profile.avatar_url}
+            src={getProxiedImageUrl(profile.avatar_url)}
             size={80}
             className="flex-shrink-0 border-2 border-gray-200"
           >

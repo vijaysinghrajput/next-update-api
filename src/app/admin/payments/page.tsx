@@ -7,6 +7,7 @@ import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
 import { supabaseClient } from '../../../lib/supabase-client'
 import { isAdmin, formatNumber } from '../../../lib/utils'
 import AdminLayout from '../../../components/layout/AdminLayout'
+import { getProxiedImageUrl } from '../../../lib/r2-storage'
 
 const { Title, Text } = Typography
 
@@ -147,7 +148,7 @@ export default function AdminPaymentsPage() {
       key: 'user',
       render: (record: PaymentRow) => (
         <div className="flex items-center space-x-2">
-          <Avatar src={record.profiles?.avatar_url || undefined} size="small">
+          <Avatar src={getProxiedImageUrl(record.profiles?.avatar_url)} size="small">
             {record.profiles?.name?.[0]?.toUpperCase()}
           </Avatar>
           <Text strong>{record.profiles?.name}</Text>
@@ -158,8 +159,8 @@ export default function AdminPaymentsPage() {
       title: 'Proof',
       key: 'proof',
       render: (record: PaymentRow) => (
-        <a href={record.screenshot_url} target="_blank" rel="noreferrer">
-          <img src={record.screenshot_url} alt="Proof" className="w-16 h-16 object-cover rounded" />
+        <a href={getProxiedImageUrl(record.screenshot_url) || record.screenshot_url} target="_blank" rel="noreferrer">
+          <img src={getProxiedImageUrl(record.screenshot_url) || record.screenshot_url} alt="Proof" className="w-16 h-16 object-cover rounded" />
         </a>
       )
     },

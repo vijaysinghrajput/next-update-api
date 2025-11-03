@@ -7,16 +7,17 @@ import { usePathname } from 'next/navigation'
 import { supabaseClient } from './supabase-client'
 import { Profile } from './supabase'
 
-// Query Client with better caching and refetching strategy
+// Query Client with optimized caching strategy to prevent excessive refetching
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 2 * 60 * 1000, // Data stays fresh for 2 minutes (reduced from 5)
-      gcTime: 10 * 60 * 1000, // Keep unused data in cache for 10 minutes
-      refetchOnWindowFocus: true, // Refetch when window regains focus
-      refetchOnMount: 'always', // Always refetch on mount (was just true)
-      refetchOnReconnect: true, // Refetch when reconnecting
+      staleTime: 5 * 60 * 1000, // Data stays fresh for 5 minutes
+      gcTime: 15 * 60 * 1000, // Keep unused data in cache for 15 minutes
+      refetchOnWindowFocus: false, // ❌ DON'T refetch on window focus (causes loops)
+      refetchOnMount: false, // ❌ DON'T refetch on every mount (causes excessive fetches)
+      refetchOnReconnect: true, // ✅ DO refetch when internet reconnects
       retry: 1, // Retry failed requests once
+      retryDelay: 1000, // Wait 1 second before retrying
     },
   },
 })
@@ -79,9 +80,10 @@ function RouteChangeHandler({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   
   useEffect(() => {
-    // Invalidate all queries when route changes (except for static assets)
+    // Just log route changes, let React Query handle its own cache
     console.log('🔄 Route changed to:', pathname)
-    queryClient.invalidateQueries()
+    // Don't invalidate queries on every route change - it causes too many refetches
+    // React Query will refetch when components mount with refetchOnMount: 'always'
   }, [pathname])
   
   return <>{children}</>
@@ -144,8 +146,14 @@ export function Providers({ children }: ProvidersProps) {
 
   useEffect(() => {
     let mounted = true
+    let isInitialized = false // Track if we've already initialized
 
     const initializeApp = async () => {
+      if (isInitialized) {
+        console.log('⏭️ App already initialized, skipping...')
+        return
+      }
+      
       try {
         console.log('🚀 Initializing app...')
         
@@ -169,6 +177,7 @@ export function Providers({ children }: ProvidersProps) {
           }
         }
         
+        isInitialized = true
         console.log('✅ App initialization complete')
       } catch (error) {
         console.error('❌ Failed to initialize app:', error)
@@ -179,26 +188,39 @@ export function Providers({ children }: ProvidersProps) {
 
     initializeApp()
 
-    // Listen for auth changes
+    // Listen for auth changes (with debouncing to prevent excessive calls)
+    let authTimeout: NodeJS.Timeout | null = null
     const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return
         
-        if (event === 'SIGNED_IN') {
-          console.log('🔐 User signed in, refreshing data...')
-          await refreshUser()
-        } else if (event === 'SIGNED_OUT') {
-          console.log('🚪 User signed out')
-          setUser(null)
-          setUserCity(null)
-          setSelectedCity(null)
-          setIsCityReady(false)
-        }
+        // Debounce auth state changes
+        if (authTimeout) clearTimeout(authTimeout)
+        
+        authTimeout = setTimeout(async () => {
+          if (event === 'SIGNED_IN' && !isInitialized) {
+            console.log('🔐 User signed in, loading profile...')
+            await refreshUser()
+          } else if (event === 'SIGNED_OUT') {
+            console.log('🚪 User signed out, clearing data...')
+            setUser(null)
+            setUserCity(null)
+            setSelectedCity(null)
+            setIsCityReady(false)
+            isInitialized = false
+          } else if (event === 'TOKEN_REFRESHED') {
+            console.log('🔄 Token refreshed (no data reload needed)')
+            // Don't reload data, just acknowledge the token refresh
+          } else {
+            console.log('📡 Auth event:', event, '(no action needed)')
+          }
+        }, 300) // 300ms debounce
       }
     )
 
     return () => {
       mounted = false
+      if (authTimeout) clearTimeout(authTimeout)
       subscription.unsubscribe()
     }
   }, [])

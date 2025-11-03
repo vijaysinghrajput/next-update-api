@@ -11,6 +11,7 @@ import { motion } from 'framer-motion'
 import { supabaseClient } from '../../lib/supabase-client'
 import { formatNumber, formatRelativeTime } from '../../lib/utils'
 import AdminStats from './AdminStats'
+import { getProxiedImageUrl } from '../../lib/r2-storage'
 
 const { Title, Text } = Typography
 // Removed deprecated TabPane import

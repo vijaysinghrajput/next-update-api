@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { supabaseClient } from '@/lib/supabase-client'
+import { debugLogger } from '@/utils/debugLogger'
 
 const PAGE_SIZE = 10 // Items per page
 
@@ -27,71 +28,90 @@ export function useInfinitePosts(cityId: string | null, userId: string | null) {
   return useInfiniteQuery({
     queryKey: ['posts', 'infinite', cityId, userId],
     queryFn: async ({ pageParam = 0 }) => {
+      const queryKey = `posts-infinite-${cityId}`
+      debugLogger.queryFetch(queryKey, pageParam)
+
       if (!cityId || !userId) {
         console.log('⏭️ Skipping posts fetch - no city or user')
         return { data: [], nextPage: null, hasMore: false }
       }
 
-      console.log(`📥 Fetching posts for city: ${cityId}, Page: ${pageParam}`)
+      console.log(`📥 Fetching posts - City: ${cityId}, Page: ${pageParam}`)
 
-      // Get city data
-      const { data: cityData } = await supabaseClient
-        .from('cities')
-        .select('id')
-        .eq('name', cityId)
-        .single()
+      try {
+        // Get city data
+        const { data: cityData } = await supabaseClient
+          .from('cities')
+          .select('id')
+          .eq('name', cityId)
+          .single()
 
-      if (!cityData) return { data: [], nextPage: null, hasMore: false }
+        if (!cityData) {
+          console.log('❌ City not found:', cityId)
+          return { data: [], nextPage: null, hasMore: false }
+        }
 
-      // Fetch posts with pagination
-      const { data: postsData, error } = await supabaseClient
-        .from('posts')
-        .select(`
-          *,
-          profiles:user_id (
-            id,
-            name,
-            avatar_url,
-            is_verified,
-            has_blue_tick
-          )
-        `)
-        .eq('city_id', cityData.id)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false })
-        .range(pageParam * PAGE_SIZE, (pageParam + 1) * PAGE_SIZE - 1)
+        // Fetch posts with pagination
+        const { data: postsData, error } = await supabaseClient
+          .from('posts')
+          .select(`
+            *,
+            profiles:user_id (
+              id,
+              name,
+              avatar_url,
+              is_verified,
+              has_blue_tick
+            )
+          `)
+          .eq('city_id', cityData.id)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .range(pageParam * PAGE_SIZE, (pageParam + 1) * PAGE_SIZE - 1)
 
-      if (error) throw error
+        if (error) {
+          debugLogger.queryError(queryKey, error, pageParam)
+          throw error
+        }
 
-      // Check which posts are liked by current user
-      if (postsData && postsData.length > 0) {
-        const postIds = postsData.map(p => p.id)
-        const { data: likesData } = await supabaseClient
-          .from('post_likes')
-          .select('post_id')
-          .eq('user_id', userId)
-          .in('post_id', postIds)
+        debugLogger.querySuccess(queryKey, postsData?.length || 0, pageParam)
 
-        const likedPostIds = new Set(likesData?.map(l => l.post_id) || [])
-        
-        postsData.forEach(post => {
-          post.is_liked = likedPostIds.has(post.id)
-        })
-      }
+        // Check which posts are liked by current user
+        if (postsData && postsData.length > 0) {
+          const postIds = postsData.map(p => p.id)
+          const { data: likesData } = await supabaseClient
+            .from('post_likes')
+            .select('post_id')
+            .eq('user_id', userId)
+            .in('post_id', postIds)
 
-      const hasMore = postsData.length === PAGE_SIZE
+          const likedPostIds = new Set(likesData?.map(l => l.post_id) || [])
+          
+          postsData.forEach(post => {
+            post.is_liked = likedPostIds.has(post.id)
+          })
+        }
 
-      return {
-        data: postsData as Post[],
-        nextPage: hasMore ? pageParam + 1 : null,
-        hasMore,
+        const hasMore = postsData.length === PAGE_SIZE
+
+        return {
+          data: postsData as Post[],
+          nextPage: hasMore ? pageParam + 1 : null,
+          hasMore,
+        }
+      } catch (error) {
+        debugLogger.queryError(queryKey, error, pageParam)
+        throw error
       }
     },
     getNextPageParam: (lastPage) => lastPage.nextPage,
     initialPageParam: 0,
     enabled: !!cityId && !!userId,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 5 * 60 * 1000, // 5 minutes - data stays fresh longer
+    gcTime: 15 * 60 * 1000, // 15 minutes - keep in cache longer
+    refetchOnWindowFocus: false, // ❌ Don't refetch on window focus
+    refetchOnMount: false, // ❌ Don't refetch on mount, use cached data
+    refetchOnReconnect: true, // ✅ Only refetch when internet reconnects
   })
 }
 
@@ -155,8 +175,11 @@ export function useInfiniteTrendingPosts(cityId: string | null, userId: string |
     getNextPageParam: (lastPage) => lastPage.nextPage,
     initialPageParam: 0,
     enabled: !!cityId && !!userId,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 15 * 60 * 1000,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 15 * 60 * 1000, // 15 minutes
+    refetchOnWindowFocus: false, // ❌ Don't refetch on window focus
+    refetchOnMount: false, // ❌ Don't refetch on mount
+    refetchOnReconnect: true, // ✅ Only refetch when internet reconnects
   })
 }
 

@@ -4,8 +4,8 @@ import React, { useState, useEffect } from 'react'
 import { Card, Typography, Button, message, Space, Avatar, Statistic, Tag } from 'antd'
 import { GiftOutlined, CopyOutlined, ShareAltOutlined, UserAddOutlined } from '@ant-design/icons'
 import { motion } from 'framer-motion'
-import { supabaseClient } from '../../lib/supabase'
-import { useAuthContext } from '../../lib/providers'
+import { supabaseClient } from '../../lib/supabase-client'
+import { useApp } from '../../lib/providers'
 
 const { Title, Text, Paragraph } = Typography
 
@@ -17,7 +17,7 @@ interface ReferralData {
 }
 
 export default function ReferralCode() {
-  const { user } = useAuthContext()
+  const { user } = useApp()
   const [referralData, setReferralData] = useState<ReferralData | null>(null)
   const [loading, setLoading] = useState(true)
 

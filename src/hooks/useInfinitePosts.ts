@@ -27,9 +27,12 @@ export function useInfinitePosts(cityId: string | null, userId: string | null) {
   return useInfiniteQuery({
     queryKey: ['posts', 'infinite', cityId, userId],
     queryFn: async ({ pageParam = 0 }) => {
-      if (!cityId || !userId) return { data: [], nextPage: null, hasMore: false }
+      if (!cityId || !userId) {
+        console.log('⏭️ Skipping posts fetch - no city or user')
+        return { data: [], nextPage: null, hasMore: false }
+      }
 
-      console.log(`📥 Fetching posts - Page ${pageParam}`)
+      console.log(`📥 Fetching posts for city: ${cityId}, Page: ${pageParam}`)
 
       // Get city data
       const { data: cityData } = await supabaseClient

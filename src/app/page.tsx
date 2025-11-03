@@ -31,7 +31,12 @@ interface Post {
 }
 
 export default function HomePage() {
-  const { user, selectedCity, isLoading: isUserLoading } = useApp()
+  const { 
+    user, 
+    selectedCity, 
+    isLoading: isUserLoading,
+    isCityReady 
+  } = useApp()
   const router = useRouter()
   const queryClient = useQueryClient()
 
@@ -42,7 +47,7 @@ export default function HomePage() {
     }
   }, [user, isUserLoading, router])
 
-  // Use infinite query for posts
+  // Use infinite query for posts - only enabled when city is ready
   const {
     data,
     isLoading,
@@ -82,11 +87,14 @@ export default function HomePage() {
     })
   }
 
-  // Loading state
-  if (isUserLoading) {
+  // Loading state - show spinner while user or city is loading
+  if (isUserLoading || !isCityReady) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
         <Spin size="large" />
+        <p className="mt-4 text-gray-600">
+          {!isCityReady ? 'Loading city...' : 'Loading...'}
+        </p>
       </div>
     )
   }
@@ -94,6 +102,15 @@ export default function HomePage() {
   // Not logged in
   if (!user) {
     return null
+  }
+
+  // No city selected (should not happen but handle gracefully)
+  if (!selectedCity) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
+        <p className="text-gray-600">Please select a city to continue</p>
+      </div>
+    )
   }
 
   return (

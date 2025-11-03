@@ -27,6 +27,7 @@ interface AppContextType {
   selectedCity: string | null
   userCity: string | null
   isLoading: boolean
+  isCityReady: boolean // New: indicates city is loaded and ready
   setSelectedCity: (city: string) => void
   refreshUser: () => Promise<void>
 }
@@ -91,6 +92,7 @@ export function Providers({ children }: ProvidersProps) {
   const [selectedCity, setSelectedCity] = useState<string | null>(null)
   const [userCity, setUserCity] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isCityReady, setIsCityReady] = useState(false)
 
   const refreshUser = async () => {
     try {
@@ -113,8 +115,10 @@ export function Providers({ children }: ProvidersProps) {
             
             // If no city selected yet, use user's city as default
             if (!selectedCity) {
+              console.log('📍 Setting default city from user profile:', profile.cities.name)
               setSelectedCity(profile.cities.name)
               localStorage.setItem('selectedCity', profile.cities.name)
+              setIsCityReady(true) // City is now ready
             }
           }
           // Ensure loading finishes AFTER all state is set
@@ -126,12 +130,14 @@ export function Providers({ children }: ProvidersProps) {
         setUser(null)
         setUserCity(null)
         setSelectedCity(null)
+        setIsCityReady(false)
         setIsLoading(false)
       }
     } catch (error) {
       console.error('Error fetching user:', error)
       setUser(null)
       setUserCity(null)
+      setIsCityReady(false)
       setIsLoading(false)
     }
   }
@@ -141,17 +147,33 @@ export function Providers({ children }: ProvidersProps) {
 
     const initializeApp = async () => {
       try {
-        // Load saved city from localStorage first
+        console.log('🚀 Initializing app...')
+        
+        // Step 1: Load saved city from localStorage FIRST
         const savedCity = localStorage.getItem('selectedCity')
         if (savedCity && mounted) {
+          console.log('📍 Restored saved city:', savedCity)
           setSelectedCity(savedCity)
+          setIsCityReady(true) // City is ready immediately from localStorage
         }
 
-        // Then fetch user data (this will set isLoading to false)
+        // Step 2: Fetch user data (this will update city if needed)
         await refreshUser()
+        
+        // Step 3: If no saved city but user has city, mark as ready
+        if (!savedCity && mounted) {
+          const cityFromUser = localStorage.getItem('selectedCity')
+          if (cityFromUser) {
+            console.log('📍 City set from user profile:', cityFromUser)
+            setIsCityReady(true)
+          }
+        }
+        
+        console.log('✅ App initialization complete')
       } catch (error) {
-        console.error('Failed to initialize app:', error)
+        console.error('❌ Failed to initialize app:', error)
         setIsLoading(false)
+        setIsCityReady(false)
       }
     }
 
@@ -163,11 +185,14 @@ export function Providers({ children }: ProvidersProps) {
         if (!mounted) return
         
         if (event === 'SIGNED_IN') {
+          console.log('🔐 User signed in, refreshing data...')
           await refreshUser()
         } else if (event === 'SIGNED_OUT') {
+          console.log('🚪 User signed out')
           setUser(null)
           setUserCity(null)
           setSelectedCity(null)
+          setIsCityReady(false)
         }
       }
     )
@@ -180,8 +205,10 @@ export function Providers({ children }: ProvidersProps) {
 
   // Save selected city to localStorage
   const handleSetSelectedCity = (city: string) => {
+    console.log('📍 Setting city:', city)
     setSelectedCity(city)
     localStorage.setItem('selectedCity', city)
+    setIsCityReady(true) // Mark city as ready when manually set
   }
 
   const appContextValue: AppContextType = {
@@ -189,6 +216,7 @@ export function Providers({ children }: ProvidersProps) {
     selectedCity,
     userCity,
     isLoading,
+    isCityReady,
     setSelectedCity: handleSetSelectedCity,
     refreshUser,
   }

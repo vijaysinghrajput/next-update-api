@@ -2,6 +2,7 @@
 
 import { User } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getProxiedImageUrl } from '@/lib/r2-storage';
 
 interface AvatarProps {
   src?: string | null;
@@ -18,14 +19,16 @@ const sizeClasses = {
 };
 
 export function Avatar({ src, alt = 'User avatar', size = 'md', className }: AvatarProps) {
+  const proxiedSrc = getProxiedImageUrl(src);
+  
   return (
     <div className={cn(
       'rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 flex items-center justify-center',
       sizeClasses[size],
       className
     )}>
-      {src ? (
-        <img src={src} alt={alt} className="w-full h-full object-cover" />
+      {proxiedSrc ? (
+        <img src={proxiedSrc} alt={alt} className="w-full h-full object-cover" />
       ) : (
         <User size={size === 'sm' ? 16 : size === 'md' ? 20 : size === 'lg' ? 24 : 32} className="text-gray-500" />
       )}

@@ -20,6 +20,7 @@ import { socialActions, supabaseClient } from '../../lib/supabase-client'
 import { extractUrls, getLinkPreview, LinkPreviewData } from '../../utils/linkPreview'
 import LinkPreview from '../shared/LinkPreview'
 import LinkifiedText from '../shared/LinkifiedText'
+import { getProxiedImageUrl } from '../../lib/r2-storage'
 
 const { Text, Paragraph } = Typography
 
@@ -282,7 +283,7 @@ export default function PostCard({ post, currentUserId, onUpdate }: PostCardProp
             <div className="relative aspect-square">
               {post.media_type === 'image' ? (
                 <Image
-                  src={post.media_urls[0]}
+                  src={getProxiedImageUrl(post.media_urls[0]) || post.media_urls[0]}
                   alt="Post media"
                   fill
                   className="object-cover"
@@ -290,7 +291,7 @@ export default function PostCard({ post, currentUserId, onUpdate }: PostCardProp
                 />
               ) : (
                 <video
-                  src={post.media_urls[0]}
+                  src={getProxiedImageUrl(post.media_urls[0]) || post.media_urls[0]}
                   controls
                   className="w-full h-full object-cover"
                 />
@@ -306,7 +307,7 @@ export default function PostCard({ post, currentUserId, onUpdate }: PostCardProp
                 <div key={index} className="relative aspect-square">
                   {post.media_type === 'image' ? (
                     <Image
-                      src={url}
+                      src={getProxiedImageUrl(url) || url}
                       alt={`Post media ${index + 1}`}
                       fill
                       className="object-cover"
@@ -314,7 +315,7 @@ export default function PostCard({ post, currentUserId, onUpdate }: PostCardProp
                     />
                   ) : (
                     <video
-                      src={url}
+                      src={getProxiedImageUrl(url) || url}
                       controls
                       className="w-full h-full object-cover"
                     />

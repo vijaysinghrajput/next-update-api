@@ -176,3 +176,24 @@ export function validateFileSize(buffer: Buffer, maxSizeMB: number = 10): {
     sizeMB
   }
 }
+
+/**
+ * Convert R2 public URL to proxied URL through our API
+ * This is needed because R2 bucket public access might not be configured
+ */
+export function getProxiedImageUrl(url: string | null | undefined): string | null {
+  if (!url) return null
+  
+  // If already using our proxy, return as is
+  if (url.includes('/api/r2/get')) return url
+  
+  // Extract the key from R2 public URL
+  const r2PublicUrl = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://ghar-khojo.r2.dev'
+  if (url.startsWith(r2PublicUrl)) {
+    const key = url.replace(r2PublicUrl + '/', '')
+    return `/api/r2/get?key=${encodeURIComponent(key)}`
+  }
+  
+  // If it's already a relative URL or external URL, return as is
+  return url
+}

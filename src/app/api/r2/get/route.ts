@@ -12,10 +12,10 @@ const SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY
 
 const r2Client = new S3Client({
   region: 'auto',
-  endpoint: ENDPOINT,
+  endpoint: ENDPOINT?.trim(),
   credentials: {
-    accessKeyId: ACCESS_KEY_ID || '',
-    secretAccessKey: SECRET_ACCESS_KEY || '',
+    accessKeyId: (ACCESS_KEY_ID || '').trim(),
+    secretAccessKey: (SECRET_ACCESS_KEY || '').trim(),
   },
 })
 

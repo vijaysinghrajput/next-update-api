@@ -28,10 +28,10 @@ if (!BUCKET_NAME || !PUBLIC_URL || !ENDPOINT || !ACCESS_KEY_ID || !SECRET_ACCESS
 
 const r2Client = new S3Client({
   region: 'auto',
-  endpoint: ENDPOINT,
+  endpoint: ENDPOINT?.trim(),
   credentials: {
-    accessKeyId: ACCESS_KEY_ID || '',
-    secretAccessKey: SECRET_ACCESS_KEY || '',
+    accessKeyId: (ACCESS_KEY_ID || '').trim(),
+    secretAccessKey: (SECRET_ACCESS_KEY || '').trim(),
   },
 })
 

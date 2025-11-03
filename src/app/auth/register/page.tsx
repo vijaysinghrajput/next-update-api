@@ -376,7 +376,6 @@ export default function RegisterPage() {
                   className="rounded-xl"
                   style={{ textTransform: 'uppercase' }}
                   status={
-                    referralValidation.isValid === true ? 'success' :
                     referralValidation.isValid === false ? 'error' : undefined
                   }
                   onChange={(e) => {

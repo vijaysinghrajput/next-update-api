@@ -1,6 +1,10 @@
 import { NextRequest } from 'next/server'
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3'
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 const BUCKET_NAME = process.env.R2_BUCKET_NAME
 const ENDPOINT = process.env.R2_ENDPOINT
 const ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID

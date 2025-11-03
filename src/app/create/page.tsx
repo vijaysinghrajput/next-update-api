@@ -14,13 +14,19 @@ const { TextArea } = Input
 const { Option } = Select
 const { Title, Text } = Typography
 
+interface City {
+  id: string
+  name: string
+  is_active: boolean
+}
+
 export default function CreatePostPage() {
   const { user, selectedCity, isLoading } = useApp()
   const router = useRouter()
   const [form] = Form.useForm()
-  const [cities, setCities] = useState([])
+  const [cities, setCities] = useState<City[]>([])
   const [loading, setLoading] = useState(false)
-  const [fileList, setFileList] = useState([])
+  const [fileList, setFileList] = useState<any[]>([])
   const [previewVisible, setPreviewVisible] = useState(false)
   const [previewImage, setPreviewImage] = useState('')
   const [contentWordCount, setContentWordCount] = useState(0)

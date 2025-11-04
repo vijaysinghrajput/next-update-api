@@ -7,6 +7,7 @@ import { Avatar } from '@/components/shared/Avatar';
 import type { Post, Profile } from '@/lib/supabase';
 import { formatRelativeTime } from '@/utils/formatters';
 import { cn } from '@/lib/utils';
+import { getProxiedImageUrl } from '@/lib/r2-storage';
 
 interface PostCardProps {
   post: Post;
@@ -58,7 +59,7 @@ export function PostCard({ post, user, currentUserId, onLike, onComment, onShare
       {/* Media */}
       <div className="relative bg-black">
         <img
-          src={post.media_urls[currentImageIndex]}
+          src={getProxiedImageUrl(post.media_urls[currentImageIndex]) || post.media_urls[currentImageIndex]}
           alt="Post media"
           className="w-full aspect-square object-cover"
         />

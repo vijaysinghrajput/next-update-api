@@ -5,6 +5,7 @@ import { Avatar, Button } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
 import { motion } from 'framer-motion'
 import { useApp } from '../../lib/providers'
+import { getProxiedImageUrl } from '../../lib/r2-storage'
 
 export default function StoryBar() {
   const { user } = useApp()
@@ -26,7 +27,7 @@ export default function StoryBar() {
         >
           <div className="relative">
             <Avatar
-              src={user?.avatar_url}
+              src={getProxiedImageUrl(user?.avatar_url) || undefined}
               size={56}
               className="border-2 border-gray-200"
             >

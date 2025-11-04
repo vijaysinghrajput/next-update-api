@@ -1,7 +1,10 @@
 // CLIENT-SAFE R2 HELPERS
 // Note: We do NOT construct S3 client in the browser. All uploads go through /api/r2/upload
 // to keep credentials on the server. PUBLIC_URL is only used to build returned URLs server-side.
-const PUBLIC_URL = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || process.env.R2_PUBLIC_URL
+// ✅ IMPORTANT: Make sure to set this in Vercel environment variables:
+// NEXT_PUBLIC_R2_PUBLIC_URL=https://pub-08e1a83abb1d4ff0ac0fceba0438ba9c.r2.dev
+// Or your custom domain if using one
+const PUBLIC_URL = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-08e1a83abb1d4ff0ac0fceba0438ba9c.r2.dev'
 
 export interface UploadResult {
   success: boolean
@@ -178,35 +181,54 @@ export function validateFileSize(buffer: Buffer, maxSizeMB: number = 10): {
 }
 
 /**
- * Convert R2 public URL to proxied URL through our API
- * This is needed because R2 bucket public access might not be configured
+ * Get R2 image URL - Uses direct public URL for better performance
+ * No need to proxy through API since bucket is public
  */
 export function getProxiedImageUrl(url: string | null | undefined): string | null {
   if (!url) return null
   
-  // If already using our proxy, return as is
-  if (url.includes('/api/r2/get')) return url
+  // ✅ FIX: Use public R2 URLs directly - no proxy needed
+  // R2 bucket is already public, so we can access images directly
+  // This is faster and more reliable than proxying through API
   
-  // Extract the key from R2 public URL
-  // Check multiple R2 URL patterns
-  const r2Patterns = [
-    'https://ghar-khojo.r2.dev/',
-    'https://pub-',
-    '.r2.dev/',
-    'r2.cloudflarestorage.com/',
-  ]
-  
-  for (const pattern of r2Patterns) {
-    if (url.includes(pattern)) {
-      // Extract everything after the domain as the key
-      const urlObj = new URL(url)
-      const key = urlObj.pathname.substring(1) // Remove leading slash
-      const proxiedUrl = `/api/r2/get?key=${encodeURIComponent(key)}`
-      // console.log('🖼️ Proxying R2 image:', url, '→', proxiedUrl)
-      return proxiedUrl
+  // If it's a relative path (starts with posts/, avatars/, etc.), prepend public URL
+  if ((url.startsWith('posts/') || url.startsWith('avatars/') || url.match(/^[a-z]+\//)) && !url.includes('://')) {
+    if (PUBLIC_URL) {
+      return `${PUBLIC_URL}/${url}`
     }
   }
   
-  // If it's already a relative URL or external URL, return as is
+  // Replace old domain with new public URL if needed
+  if (url.includes('ghar-khojo.r2.dev/')) {
+    try {
+      const urlObj = new URL(url)
+      const pathWithKey = urlObj.pathname
+      if (PUBLIC_URL) {
+        return `${PUBLIC_URL}${pathWithKey}`
+      }
+    } catch (e) {
+      console.warn('Failed to convert old R2 URL to new public URL:', e)
+    }
+  }
+  
+  // If it's already a valid R2 public URL (new domain), return as is
+  if (url.includes('pub-08e1a83abb1d4ff0ac0fceba0438ba9c.r2.dev/') || (url.includes('pub-') && url.includes('.r2.dev/'))) {
+    return url
+  }
+  
+  // If it's a proxied URL, convert back to public URL for better performance
+  if (url.includes('/api/r2/get?key=')) {
+    try {
+      const urlObj = new URL(url, typeof window !== 'undefined' ? window.location.origin : 'http://localhost')
+      const key = urlObj.searchParams.get('key')
+      if (key && PUBLIC_URL) {
+        return `${PUBLIC_URL}/${key}`
+      }
+    } catch (e) {
+      console.warn('Failed to convert proxy URL to public URL:', e)
+    }
+  }
+  
+  // If it's already a relative or external URL, return as is
   return url
 }

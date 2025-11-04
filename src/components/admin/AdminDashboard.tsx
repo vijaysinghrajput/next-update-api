@@ -236,7 +236,7 @@ export default function AdminDashboard() {
       key: 'user',
       render: (record: ProfileRow) => (
         <div className="flex items-center space-x-2">
-          <Avatar src={record.avatar_url || undefined} size="small">
+          <Avatar src={getProxiedImageUrl(record.avatar_url) || undefined} size="small">
             {record.name?.[0]?.toUpperCase()}
           </Avatar>
           <div>
@@ -283,7 +283,7 @@ export default function AdminDashboard() {
       key: 'user',
       render: (record: KycRow) => (
         <div className="flex items-center space-x-2">
-          <Avatar src={record.profiles?.avatar_url || undefined} size="small">
+          <Avatar src={getProxiedImageUrl(record.profiles?.avatar_url) || undefined} size="small">
             {record.profiles?.name?.[0]?.toUpperCase()}
           </Avatar>
           <Text strong>{record.profiles?.name}</Text>
@@ -327,7 +327,7 @@ export default function AdminDashboard() {
       key: 'user',
       render: (record: PaymentRequestRow) => (
         <div className="flex items-center space-x-2">
-          <Avatar src={record.profiles?.avatar_url || undefined} size="small">
+          <Avatar src={getProxiedImageUrl(record.profiles?.avatar_url) || undefined} size="small">
             {record.profiles?.name?.[0]?.toUpperCase()}
           </Avatar>
           <Text strong>{record.profiles?.name}</Text>

@@ -24,15 +24,8 @@ interface KycRow {
 
 function toViewUrl(url: string): string {
   if (!url) return url
-  try {
-    if (url.startsWith('/api/r2/get')) return url
-    const parts = url.split('.r2.dev/')
-    const k = parts.length > 1 ? parts[1] : ''
-    if (k) return `/api/r2/get?key=${encodeURIComponent(k)}`
-    return url
-  } catch {
-    return url
-  }
+  // Use getProxiedImageUrl to handle all URL conversions (old domain, relative paths, etc.)
+  return getProxiedImageUrl(url) || url
 }
 
 export default function AdminKycPage() {

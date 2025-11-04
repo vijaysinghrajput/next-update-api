@@ -21,6 +21,10 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'ghar-khojo.r2.dev',
       },
+      {
+        protocol: 'https',
+        hostname: 'pub-08e1a83abb1d4ff0ac0fceba0438ba9c.r2.dev',
+      },
       // YouTube
       {
         protocol: 'https',

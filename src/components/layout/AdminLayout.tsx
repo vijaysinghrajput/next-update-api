@@ -17,6 +17,7 @@ import {
 import { motion } from 'framer-motion'
 import { useApp } from '../../lib/providers'
 import { supabaseClient } from '../../lib/supabase-client'
+import { getProxiedImageUrl } from '../../lib/r2-storage'
 
 const { Header, Sider, Content } = Layout
 const { Title, Text } = Typography
@@ -163,7 +164,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             <Dropdown menu={{ items: profileItems }} trigger={['click']}>
               <div className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 rounded-lg p-2">
                 <Avatar 
-                  src={user?.avatar_url} 
+                  src={getProxiedImageUrl(user?.avatar_url) || undefined} 
                   icon={<UserOutlined />}
                   className="border-2 border-primary"
                 />

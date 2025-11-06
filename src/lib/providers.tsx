@@ -198,7 +198,7 @@ export function Providers({ children }: ProvidersProps) {
         if (authTimeout) clearTimeout(authTimeout)
         
         authTimeout = setTimeout(async () => {
-          if (event === 'SIGNED_IN' && !isInitialized) {
+          if (event === 'SIGNED_IN') {
             console.log('🔐 User signed in, loading profile...')
             await refreshUser()
           } else if (event === 'SIGNED_OUT') {

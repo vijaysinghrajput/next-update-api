@@ -76,10 +76,19 @@ export default function LoginPage() {
           } catch {}
         }
 
-        if (email === 'admin@nextupdate.in' || email === 'support@nextupdate.in') {
-          router.push('/admin')
+        // Wait a bit for auth state to propagate before redirecting
+        await new Promise(resolve => setTimeout(resolve, 500))
+
+        // Verify session is still valid before redirecting
+        const { data: { session } } = await supabaseClient.auth.getSession()
+        if (session) {
+          if (email === 'admin@nextupdate.in' || email === 'support@nextupdate.in') {
+            router.push('/admin')
+          } else {
+            router.push('/')
+          }
         } else {
-          router.push('/')
+          setError('Session expired. Please try again.')
         }
       }
     } catch (err: any) {

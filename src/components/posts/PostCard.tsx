@@ -86,6 +86,38 @@ export default function PostCard({ post, currentUserId, onUpdate }: PostCardProp
       const urls = extractUrls(post.caption)
       const previews = urls.map(url => getLinkPreview(url))
       setLinkPreviews(previews)
+
+      // Enhance generic links with server-fetched Open Graph metadata
+      const enhance = async () => {
+        try {
+          const updates = await Promise.all(previews.map(async (p) => {
+            if (p.type !== 'link') return p
+            try {
+              const res = await fetch('/api/link-preview', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: p.url })
+              })
+              if (!res.ok) return p
+              const data = await res.json()
+              return {
+                ...p,
+                title: data.title || p.title,
+                description: data.description || p.description,
+                image: data.image || p.image,
+                domain: data.domain || p.domain
+              } as LinkPreviewData
+            } catch {
+              return p
+            }
+          }))
+          setLinkPreviews(updates)
+        } catch {
+          // ignore enhancement errors
+        }
+      }
+
+      enhance()
     }
   }, [post.caption])
 

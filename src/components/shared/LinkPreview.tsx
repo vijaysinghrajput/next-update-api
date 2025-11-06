@@ -163,6 +163,16 @@ export default function LinkPreview({ preview, compact = false }: LinkPreviewPro
         className={`rounded-xl border-2 cursor-pointer ${getPlatformColor(preview.domain)}`}
       >
         <Space direction="vertical" size={8} className="w-full">
+          {preview.image && !imageError && (
+            <div className="relative w-full overflow-hidden rounded-lg bg-gray-100">
+              <img
+                src={preview.image}
+                alt={preview.title || 'Link preview image'}
+                className="w-full h-auto object-cover"
+                onError={() => setImageError(true)}
+              />
+            </div>
+          )}
           <div className="flex items-center gap-3">
             {getPlatformIcon(preview.domain)}
             <div>

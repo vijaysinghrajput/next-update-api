@@ -91,33 +91,90 @@ export default function PostCard({ post, currentUserId, onUpdate }: PostCardProp
       const enhance = async () => {
         try {
           const updates = await Promise.all(previews.map(async (p) => {
+            // Skip if already has good data (YouTube, images) or if it's not a generic link
             if (p.type !== 'link') return p
-            try {
-              const res = await fetch('/api/link-preview', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: p.url })
-              })
-              if (!res.ok) return p
-              const data = await res.json()
-              return {
-                ...p,
-                title: data.title || p.title,
-                description: data.description || p.description,
-                image: data.image || p.image,
-                domain: data.domain || p.domain
-              } as LinkPreviewData
-            } catch {
-              return p
+            
+            // Retry logic with exponential backoff
+            let lastError: Error | null = null
+            for (let attempt = 0; attempt < 2; attempt++) {
+              let timeout: NodeJS.Timeout | null = null
+              try {
+                const controller = new AbortController()
+                timeout = setTimeout(() => controller.abort(), 8000)
+                
+                const res = await fetch('/api/link-preview', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ url: p.url }),
+                  signal: controller.signal
+                })
+                
+                if (timeout) clearTimeout(timeout)
+                
+                if (!res.ok) {
+                  // If API returns error but has basic data, use it
+                  const errorData = await res.json().catch(() => null)
+                  if (errorData && !errorData.error) {
+                    return {
+                      ...p,
+                      title: errorData.title || p.title,
+                      description: errorData.description || p.description,
+                      image: errorData.image || p.image,
+                      domain: errorData.domain || p.domain
+                    } as LinkPreviewData
+                  }
+                  throw new Error(`HTTP ${res.status}`)
+                }
+                
+                const data = await res.json()
+                
+                // If API returned error in response body, use basic preview
+                if (data.error) {
+                  return p
+                }
+                
+                return {
+                  ...p,
+                  title: data.title || p.title,
+                  description: data.description || p.description,
+                  image: data.image || p.image,
+                  domain: data.domain || p.domain
+                } as LinkPreviewData
+              } catch (err: any) {
+                if (timeout) clearTimeout(timeout)
+                lastError = err
+                // Wait before retry (exponential backoff)
+                if (attempt < 1) {
+                  await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)))
+                }
+              }
             }
+            
+            // If all retries failed, return original preview
+            return p
           }))
-          setLinkPreviews(updates)
-        } catch {
-          // ignore enhancement errors
+          
+          // Only update if we got new data
+          setLinkPreviews(prev => {
+            // Check if updates are different
+            const hasChanges = updates.some((update, i) => {
+              const prevItem = prev[i]
+              return !prevItem || 
+                     update.title !== prevItem.title ||
+                     update.description !== prevItem.description ||
+                     update.image !== prevItem.image
+            })
+            return hasChanges ? updates : prev
+          })
+        } catch (err) {
+          // Silently fail - keep basic previews
+          console.debug('Link preview enhancement failed:', err)
         }
       }
 
       enhance()
+    } else {
+      setLinkPreviews([])
     }
   }, [post.caption])
 

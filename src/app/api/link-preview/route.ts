@@ -54,56 +54,93 @@ export async function POST(req: NextRequest) {
     }
 
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 8000)
+    const timeout = setTimeout(() => controller.abort(), 10000) // Increased timeout
 
-    const res = await fetch(url, {
-      method: 'GET',
-      redirect: 'follow',
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; LinkPreviewBot/1.0; +https://example.com)'
+    try {
+      const res = await fetch(url, {
+        method: 'GET',
+        redirect: 'follow',
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+        }
+      })
+
+      clearTimeout(timeout)
+
+      if (!res.ok) {
+        // Return basic data even if fetch failed
+        return NextResponse.json({
+          url,
+          domain: getDomain(url)
+        } satisfies OgData)
       }
-    })
 
-    clearTimeout(timeout)
+      const html = await res.text()
 
-    if (!res.ok) {
+      const title = extractAnyOg(html, ['og:title', 'twitter:title'])
+        || html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]
+        || undefined
+
+      const description = extractAnyOg(html, ['og:description', 'twitter:description'])
+        || html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["'][^>]*>/i)?.[1]
+        || undefined
+
+      let image = extractAnyOg(html, ['og:image', 'og:image:url', 'twitter:image', 'twitter:image:src'])
+
+      // Resolve relative image URLs
+      if (image && !/^https?:\/\//i.test(image)) {
+        try {
+          image = new URL(image, url).toString()
+        } catch {
+          image = undefined
+        }
+      }
+
+      // Clean up image URL (remove query params that might cause issues)
+      if (image) {
+        try {
+          const imgUrl = new URL(image)
+          // Keep only essential query params
+          imgUrl.search = ''
+          image = imgUrl.toString()
+        } catch {
+          // Keep original if URL parsing fails
+        }
+      }
+
+      const payload: OgData = {
+        url,
+        domain: getDomain(url),
+        title: title?.trim() || undefined,
+        description: description?.trim() || undefined,
+        image: image || undefined
+      }
+
+      return NextResponse.json(payload)
+    } catch (fetchError: any) {
+      clearTimeout(timeout)
+      
+      // If fetch failed, return basic data
+      if (fetchError.name === 'AbortError') {
+        console.error('Link preview fetch timeout:', url)
+      } else {
+        console.error('Link preview fetch error:', url, fetchError.message)
+      }
+      
       return NextResponse.json({
         url,
         domain: getDomain(url)
       } satisfies OgData)
     }
-
-    const html = await res.text()
-
-    const title = extractAnyOg(html, ['og:title', 'twitter:title'])
-      || html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]
-
-    const description = extractAnyOg(html, ['og:description', 'twitter:description'])
-      || html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["'][^>]*>/i)?.[1]
-
-    let image = extractAnyOg(html, ['og:image', 'og:image:url', 'twitter:image'])
-
-    // Resolve relative image URLs
-    if (image && !/^https?:\/\//i.test(image)) {
-      try {
-        image = new URL(image, url).toString()
-      } catch {
-        // ignore invalid image URL
-      }
-    }
-
-    const payload: OgData = {
-      url,
-      domain: getDomain(url),
-      title: title || undefined,
-      description: description || undefined,
-      image: image || undefined
-    }
-
-    return NextResponse.json(payload)
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch metadata' }, { status: 500 })
+  } catch (error: any) {
+    console.error('Link preview API error:', error.message)
+    return NextResponse.json(
+      { error: 'Failed to fetch metadata', message: error.message },
+      { status: 500 }
+    )
   }
 }
 

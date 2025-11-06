@@ -11,7 +11,7 @@ import {
   GithubOutlined,
   GlobalOutlined
 } from '@ant-design/icons'
-import Image from 'next/image'
+// Using regular img tag for external images to avoid Next.js Image optimization issues
 import { motion } from 'framer-motion'
 import { LinkPreviewData } from '@/utils/linkPreview'
 
@@ -64,12 +64,12 @@ export default function LinkPreview({ preview, compact = false }: LinkPreviewPro
           styles={{ body: { padding: 0 } }}
         >
           <div className="relative aspect-video w-full bg-black">
-            <Image
+            <img
               src={preview.image}
               alt="YouTube Video"
-              fill
-              className="object-cover"
+              className="w-full h-full object-cover"
               onError={() => setImageError(true)}
+              loading="lazy"
             />
             <div className="absolute inset-0 flex items-center justify-center bg-black/30 hover:bg-black/40 transition-colors">
               <PlayCircleOutlined className="text-white text-6xl drop-shadow-lg" />
@@ -108,12 +108,12 @@ export default function LinkPreview({ preview, compact = false }: LinkPreviewPro
           styles={{ body: { padding: 0 } }}
         >
           <div className="relative aspect-video w-full bg-gray-100">
-            <Image
+            <img
               src={preview.image}
               alt="Link preview"
-              fill
-              className="object-contain"
+              className="w-full h-full object-contain"
               onError={() => setImageError(true)}
+              loading="lazy"
             />
           </div>
           <div className="p-2 bg-white">

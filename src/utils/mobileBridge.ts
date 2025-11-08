@@ -3,6 +3,20 @@
  * This file enables native features when the website runs in the mobile app
  */
 
+declare global {
+  interface Window {
+    ReactNativeWebView?: {
+      postMessage: (message: string) => void
+    }
+    Android?: Record<string, any>
+    webkit?: Record<string, any>
+    isMobileApp?: boolean
+    isNextUpdateApp?: boolean
+    __mobileBridgeInitialized?: boolean
+    __nativeFileUploadResolvers?: Record<string, { resolve: (files: File[]) => void; reject: (error: Error) => void }>
+  }
+}
+
 // Detect if running in mobile app
 export const isMobileApp = (): boolean => {
   if (typeof window === 'undefined') return false
@@ -20,13 +34,14 @@ export const isMobileApp = (): boolean => {
 
 // Send message to React Native app
 export const sendToNativeApp = (type: string, data: any = {}): void => {
-  if (!isMobileApp() || !window.ReactNativeWebView) {
+  const bridge = window.ReactNativeWebView
+  if (!isMobileApp() || !bridge) {
     console.debug('[MobileBridge] Not in mobile app, skipping:', type)
     return
   }
   
   try {
-    window.ReactNativeWebView.postMessage(JSON.stringify({
+    bridge.postMessage(JSON.stringify({
       type,
       ...data,
       timestamp: Date.now()
@@ -338,4 +353,6 @@ if (typeof window !== 'undefined') {
     }, 1000)
   }
 }
+
+export {}
 

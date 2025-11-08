@@ -17,15 +17,14 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { formatRelativeTime, formatNumber } from '../../lib/utils'
 import { socialActions, supabaseClient } from '../../lib/supabase-client'
-import { extractUrls, getLinkPreview, LinkPreviewData } from '../../utils/linkPreview'
+import { extractUrls, LinkPreviewData } from '../../utils/linkPreview'
+import { getBasePreviews, enhancePreviews } from '../../utils/linkPreviewCache'
 import LinkPreview from '../shared/LinkPreview'
 import LinkifiedText from '../shared/LinkifiedText'
 import { getProxiedImageUrl } from '../../lib/r2-storage'
 import { Avatar } from '../shared/Avatar'
 
 const { Text, Paragraph } = Typography
-
-const linkPreviewCache = new Map<string, LinkPreviewData>()
 
 interface Comment {
   id: string
@@ -92,93 +91,12 @@ export default function PostCard({ post, currentUserId, onUpdate }: PostCardProp
       if (urls.length === 0) {
         setLinkPreviews([])
       } else {
-        const basePreviews = urls.map(url => {
-          const cached = linkPreviewCache.get(url)
-          if (cached) return cached
-
-          const generated = getLinkPreview(url)
-          linkPreviewCache.set(url, generated)
-          return generated
-        })
-
+        const basePreviews = getBasePreviews(urls)
         setLinkPreviews(basePreviews)
 
         const enhance = async () => {
           try {
-            const updates = await Promise.all(basePreviews.map(async (p) => {
-              if (p.type !== 'link') {
-                linkPreviewCache.set(p.url, p)
-                return p
-              }
-
-              const cachedPreview = linkPreviewCache.get(p.url)
-              if (cachedPreview && cachedPreview.type !== 'link') {
-                return cachedPreview
-              }
-              
-              let lastError: Error | null = null
-              for (let attempt = 0; attempt < 2; attempt++) {
-                let timeout: NodeJS.Timeout | null = null
-                try {
-                  const controller = new AbortController()
-                  timeout = setTimeout(() => controller.abort(), 8000)
-                  
-                  const res = await fetch('/api/link-preview', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url: p.url }),
-                    signal: controller.signal
-                  })
-                  
-                  if (timeout) clearTimeout(timeout)
-                  
-                  if (!res.ok) {
-                    const errorData = await res.json().catch(() => null)
-                    if (errorData && !errorData.error) {
-                      const enriched: LinkPreviewData = {
-                        ...p,
-                        title: errorData.title || p.title,
-                        description: errorData.description || p.description,
-                        image: errorData.image || p.image,
-                        domain: errorData.domain || p.domain
-                      }
-                      linkPreviewCache.set(p.url, enriched)
-                      return enriched
-                    }
-                    throw new Error(`HTTP ${res.status}`)
-                  }
-                  
-                  const data = await res.json()
-                  
-                  if (data.error) {
-                    return p
-                  }
-                  
-                  const enriched: LinkPreviewData = {
-                    ...p,
-                    title: data.title || p.title,
-                    description: data.description || p.description,
-                    image: data.image || p.image,
-                    domain: data.domain || p.domain
-                  }
-                  linkPreviewCache.set(p.url, enriched)
-                  return enriched
-                } catch (err: any) {
-                  if (timeout) clearTimeout(timeout)
-                  lastError = err
-                  if (attempt < 1) {
-                    await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)))
-                  }
-                }
-              }
-              
-              if (lastError) {
-                console.debug('Link preview enhancement failed for url:', p.url, lastError)
-              }
-              const fallback = linkPreviewCache.get(p.url)
-              return fallback || p
-            }))
-            
+            const updates = await enhancePreviews(basePreviews)
             if (isMounted) {
               setLinkPreviews(updates)
             }

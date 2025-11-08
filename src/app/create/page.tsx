@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { Button, Upload, Input, Select, Card, Typography, message, Form, App } from 'antd'
+import React, { useState, useEffect, useRef } from 'react'
+import { Button, Upload, Input, Select, Card, Typography, Form, App } from 'antd'
 import { PlusOutlined, SendOutlined, EnvironmentOutlined } from '@ant-design/icons'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
@@ -9,7 +9,9 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useApp } from '../../lib/providers'
 import { supabaseClient } from '../../lib/supabase-client'
 import { uploadMultipleToR2, validateMediaFile, validateFileSize } from '../../lib/r2-storage'
-import { extractUrls } from '../../utils/linkPreview'
+import { extractUrls, LinkPreviewData } from '../../utils/linkPreview'
+import { getBasePreviews, enhancePreviews } from '../../utils/linkPreviewCache'
+import LinkPreview from '../../components/shared/LinkPreview'
 
 const { TextArea } = Input
 const { Option } = Select
@@ -34,6 +36,8 @@ export default function CreatePostPage() {
   const [previewImage, setPreviewImage] = useState('')
   const [contentWordCount, setContentWordCount] = useState(0)
   const [titleEdited, setTitleEdited] = useState(false)
+  const [linkPreviews, setLinkPreviews] = useState<LinkPreviewData[]>([])
+  const previewRequestRef = useRef(0)
 
   useEffect(() => {
     const fetchCities = async () => {
@@ -92,6 +96,68 @@ export default function CreatePostPage() {
       reader.onload = () => resolve(reader.result as string)
       reader.onerror = error => reject(error)
     })
+
+  const handleContentChange = (value: string) => {
+    const words = value
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+    setContentWordCount(value.trim().length === 0 ? 0 : words.length)
+
+    if (!titleEdited) {
+      const urlsInContent = extractUrls(value.trim())
+
+      let textWithoutUrls = value.trim()
+      urlsInContent.forEach(url => {
+        textWithoutUrls = textWithoutUrls.replace(url, '').trim()
+      })
+
+      const autoTitle = textWithoutUrls
+        .split(/\s+/)
+        .filter(word => word.length > 0)
+        .slice(0, 12)
+        .join(' ')
+
+      form.setFieldsValue({ title: autoTitle })
+    }
+
+    if (!value || value.trim().length === 0) {
+      previewRequestRef.current++
+      setLinkPreviews([])
+      return
+    }
+
+    const urls = extractUrls(value)
+    if (urls.length === 0) {
+      previewRequestRef.current++
+      setLinkPreviews([])
+      return
+    }
+
+    const basePreviews = getBasePreviews(urls)
+    setLinkPreviews(basePreviews)
+
+    const requestId = ++previewRequestRef.current
+    enhancePreviews(basePreviews)
+      .then(enhanced => {
+        if (previewRequestRef.current !== requestId) return
+
+        setLinkPreviews(prev => {
+          const hasChanges = enhanced.some((update, idx) => {
+            const current = prev[idx]
+            return !current ||
+              update.title !== current.title ||
+              update.description !== current.description ||
+              update.image !== current.image
+          })
+
+          return hasChanges ? enhanced : prev
+        })
+      })
+      .catch(err => {
+        console.debug('Failed to enhance link previews in create form:', err)
+      })
+  }
 
   const handleSubmit = async (values: any) => {
     setLoading(true)
@@ -166,6 +232,12 @@ export default function CreatePostPage() {
       }
 
       messageApi.success('Post created successfully! 🎉')
+
+      form.resetFields()
+      setContentWordCount(0)
+      setTitleEdited(false)
+      previewRequestRef.current++
+      setLinkPreviews([])
 
       // Ensure home feed refreshes with new post
       await queryClient.invalidateQueries({ queryKey: ['posts'] })
@@ -252,36 +324,19 @@ export default function CreatePostPage() {
                     placeholder="Write your post..."
                     className="rounded-xl"
                     onChange={(e) => {
-                      const words = e.target.value
-                        .trim()
-                        .split(/\s+/)
-                        .filter(Boolean)
-                      setContentWordCount(words[0] === '' ? 0 : words.length)
-                      
-                      // Auto-generate title from first 12 words if user hasn't edited title
-                      // But exclude URLs from the title
-                      if (!titleEdited) {
-                        const content = e.target.value.trim()
-                        const urls = extractUrls(content)
-                        
-                        // Remove URLs from content before generating title
-                        let textWithoutUrls = content
-                        urls.forEach(url => {
-                          textWithoutUrls = textWithoutUrls.replace(url, '').trim()
-                        })
-                        
-                        // Generate title from text without URLs
-                        const autoTitle = textWithoutUrls
-                          .split(/\s+/)
-                          .filter(word => word.length > 0)
-                          .slice(0, 12)
-                          .join(' ')
-                        
-                        form.setFieldsValue({ title: autoTitle })
-                      }
+                      const value = e.target.value
+                      form.setFieldsValue({ content: value })
+                      handleContentChange(value)
                     }}
                   />
                   <div className="text-right text-xs text-gray-500 mt-1">{contentWordCount}/2000 words</div>
+                  {linkPreviews.length > 0 && (
+                    <div className="space-y-3 mt-3">
+                      {linkPreviews.map(preview => (
+                        <LinkPreview key={preview.url} preview={preview} />
+                      ))}
+                    </div>
+                  )}
                 </div>
               </Form.Item>
 

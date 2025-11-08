@@ -7,11 +7,11 @@ export const runtime = 'nodejs'
 
 // This route runs on the server and can safely use private env vars
 
-const BUCKET_NAME = process.env.R2_BUCKET_NAME
-const PUBLIC_URL = process.env.R2_PUBLIC_URL
-const ENDPOINT = process.env.R2_ENDPOINT
-const ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID
-const SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY
+const BUCKET_NAME = (process.env.R2_BUCKET_NAME || '').trim()
+const PUBLIC_URL = (process.env.R2_PUBLIC_URL || '').trim()
+const ENDPOINT = (process.env.R2_ENDPOINT || '').trim()
+const ACCESS_KEY_ID = (process.env.R2_ACCESS_KEY_ID || '').trim()
+const SECRET_ACCESS_KEY = (process.env.R2_SECRET_ACCESS_KEY || '').trim()
 
 // Log environment check on startup
 console.log('[R2 Upload] Environment Check:', {

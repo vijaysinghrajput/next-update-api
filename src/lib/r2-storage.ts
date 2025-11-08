@@ -4,7 +4,7 @@
 // ✅ IMPORTANT: Make sure to set this in Vercel environment variables:
 // NEXT_PUBLIC_R2_PUBLIC_URL=https://pub-08e1a83abb1d4ff0ac0fceba0438ba9c.r2.dev
 // Or your custom domain if using one
-const PUBLIC_URL = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-08e1a83abb1d4ff0ac0fceba0438ba9c.r2.dev'
+const PUBLIC_URL = (process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-08e1a83abb1d4ff0ac0fceba0438ba9c.r2.dev').trim()
 
 export interface UploadResult {
   success: boolean

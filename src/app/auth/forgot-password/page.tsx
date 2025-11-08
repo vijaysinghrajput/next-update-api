@@ -92,7 +92,7 @@ export default function ForgotPasswordPage() {
             </motion.div>
             <Title level={2} className="mb-2">Forgot Password?</Title>
             <Text type="secondary">
-              Enter your email address and we'll send you a link to reset your password.
+              Enter your email address and we&apos;ll send you a link to reset your password.
             </Text>
           </div>
 

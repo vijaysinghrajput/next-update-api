@@ -6,6 +6,7 @@ import { ConfigProvider, theme, App } from 'antd'
 import { usePathname } from 'next/navigation'
 import { supabaseClient } from './supabase-client'
 import { Profile } from './supabase'
+import '../utils/mobileBridge' // Initialize mobile bridge
 
 // Query Client with optimized caching strategy to prevent excessive refetching
 const queryClient = new QueryClient({

@@ -43,7 +43,11 @@ export async function uploadToR2(
       let errMsg = 'Upload failed'
       try {
         const data = await res.json()
-        errMsg = data?.error || errMsg
+        if (data?.details) {
+          errMsg = `${data.error || errMsg}: ${data.details}`
+        } else if (data?.error) {
+          errMsg = data.error
+        }
       } catch {
         try { errMsg = await res.text() } catch {}
       }

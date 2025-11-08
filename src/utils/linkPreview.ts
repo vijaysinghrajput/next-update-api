@@ -17,7 +17,8 @@ export function getYouTubeId(url: string): string | null {
 
 // Get YouTube thumbnail
 export function getYouTubeThumbnail(videoId: string): string {
-  return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
+  // maxresdefault.jpg is not always available; hqdefault.jpg is a reliable fallback
+  return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
 }
 
 // Get YouTube embed URL

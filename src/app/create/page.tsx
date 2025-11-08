@@ -5,6 +5,7 @@ import { Button, Upload, Input, Select, Card, Typography, message, Form, App } f
 import { PlusOutlined, SendOutlined, EnvironmentOutlined } from '@ant-design/icons'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import { useApp } from '../../lib/providers'
 import { supabaseClient } from '../../lib/supabase-client'
 import { uploadMultipleToR2, validateMediaFile, validateFileSize } from '../../lib/r2-storage'
@@ -25,6 +26,7 @@ export default function CreatePostPage() {
   const { message: messageApi } = App.useApp()
   const router = useRouter()
   const [form] = Form.useForm()
+  const queryClient = useQueryClient()
   const [cities, setCities] = useState<City[]>([])
   const [loading, setLoading] = useState(false)
   const [fileList, setFileList] = useState<any[]>([])
@@ -164,6 +166,9 @@ export default function CreatePostPage() {
       }
 
       messageApi.success('Post created successfully! 🎉')
+
+      // Ensure home feed refreshes with new post
+      await queryClient.invalidateQueries({ queryKey: ['posts'] })
       router.push('/')
     } catch (error) {
       console.error('[CreatePost] Submit error', error)

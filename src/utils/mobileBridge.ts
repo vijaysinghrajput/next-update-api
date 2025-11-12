@@ -228,7 +228,13 @@ export const initMobileBridge = (): void => {
             try {
               let blob: Blob | null = null
 
-              const sourceUri = fileData.url || fileData.uri
+              const normalizeUri = (input?: string): string | undefined => {
+                if (!input || typeof input !== 'string') return input
+                const trimmed = input.trim()
+                return trimmed.replace(/^[`'"]+|[`'\"]+$/g, '')
+              }
+
+              const sourceUri = normalizeUri(fileData.url || fileData.uri)
 
               if (sourceUri && sourceUri.startsWith('data:')) {
                 // Data URI - decode directly
@@ -260,7 +266,7 @@ export const initMobileBridge = (): void => {
               const metaStore = getNativeMetaStore()
               metaStore?.set(file, {
                 key: fileData.key,
-                url: fileData.url,
+                url: normalizeUri(fileData.url),
                 type: fileData.type || blob.type || 'application/octet-stream',
                 size: fileData.size || blob.size,
               })
@@ -268,6 +274,9 @@ export const initMobileBridge = (): void => {
               ;(file as any).uid = fileData.key || `native-${Date.now()}-${Math.random().toString(36).slice(2)}`
               ;(file as any).originFileObj = file
               ;(file as any).status = 'done'
+              ;(file as any).url = normalizeUri(fileData.url)
+              ;(file as any).thumbUrl = normalizeUri(fileData.url)
+              ;(file as any).r2Url = normalizeUri(fileData.url)
 
               return file
             } catch (error) {
@@ -281,13 +290,16 @@ export const initMobileBridge = (): void => {
               const metaStore = getNativeMetaStore()
               metaStore?.set(file, {
                 key: fileData.key,
-                url: fileData.url,
+                url: (fileData.url || '').trim().replace(/^[`'\"]+|[`'\"]+$/g, ''),
                 type: fileData.type || 'application/octet-stream',
                 size: fileData.size || 0,
               })
               ;(file as any).uid = fileData.key || `native-${Date.now()}-${Math.random().toString(36).slice(2)}`
               ;(file as any).originFileObj = file
               ;(file as any).status = 'done'
+              ;(file as any).url = (fileData.url || '').trim().replace(/^[`'\"]+|[`'\"]+$/g, '')
+              ;(file as any).thumbUrl = (fileData.url || '').trim().replace(/^[`'\"]+|[`'\"]+$/g, '')
+              ;(file as any).r2Url = (fileData.url || '').trim().replace(/^[`'\"]+|[`'\"]+$/g, '')
               return file
             }
           }))
@@ -414,4 +426,3 @@ if (typeof window !== 'undefined') {
 }
 
 export {}
-

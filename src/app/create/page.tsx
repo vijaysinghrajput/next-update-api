@@ -68,21 +68,24 @@ export default function CreatePostPage() {
   }
 
   const handleUploadChange = ({ fileList }: any) => {
+    const clean = (s?: string) => typeof s === 'string' ? s.trim().replace(/^[`'\"]+|[`'\"]+$/g, '') : s
     // Validate files
     const validFiles = fileList.filter((file: any) => {
       const nativeMeta = getNativeFileMeta(file)
       if (nativeMeta?.url) {
-        file.r2Url = nativeMeta.url
-        file.url = nativeMeta.url
-        file.thumbUrl = nativeMeta.url
+        const u = clean(nativeMeta.url)
+        file.r2Url = u
+        file.url = u
+        file.thumbUrl = u
         file.status = file.status || 'done'
         file.type = file.type || nativeMeta.type || 'image/jpeg'
         file.size = file.size || nativeMeta.size
         return true
       }
       if (file.r2Url) {
-        file.url = file.r2Url
-        file.thumbUrl = file.r2Url
+        const u = clean(file.r2Url)
+        file.url = u
+        file.thumbUrl = u
         file.status = file.status || 'done'
         return true
       }

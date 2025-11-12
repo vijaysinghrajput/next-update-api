@@ -126,7 +126,7 @@ import '../utils/mobileBridge' // Auto-initializes
 
 ### Mobile App Configuration
 The mobile app is configured to:
-- Load `https://next-update.skyablyitsolution.com`
+- Load `https://app.nextupdate.in`
 - Enable JavaScript and DOM storage
 - Support cookies for authentication
 - Handle all message types

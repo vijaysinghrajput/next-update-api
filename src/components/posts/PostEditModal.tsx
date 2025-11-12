@@ -120,18 +120,19 @@ export function PostEditModal({
     const limitedList = newFileList.slice(0, MAX_MEDIA_ITEMS)
 
     const normalizedList: EditableUploadFile[] = limitedList.map((file) => {
+      const sourceFile = file as EditableUploadFile
       const nextFile = { ...file } as EditableUploadFile
 
       if (file.originFileObj) {
         nextFile.mediaType = getFileMediaType(file.originFileObj)
-      } else if (file.mediaType) {
-        nextFile.mediaType = file.mediaType
-      } else if ((file as EditableUploadFile).existingUrl) {
-        nextFile.mediaType = (file as EditableUploadFile).mediaType ?? currentMediaType
+      } else if (sourceFile.mediaType) {
+        nextFile.mediaType = sourceFile.mediaType
+      } else if (sourceFile.existingUrl) {
+        nextFile.mediaType = sourceFile.mediaType ?? currentMediaType
       }
 
-      if ((file as EditableUploadFile).existingUrl) {
-        nextFile.existingUrl = (file as EditableUploadFile).existingUrl
+      if (sourceFile.existingUrl) {
+        nextFile.existingUrl = sourceFile.existingUrl
       }
 
       return nextFile

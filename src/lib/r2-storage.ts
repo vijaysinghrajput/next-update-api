@@ -97,7 +97,7 @@ export function generateFileKey(originalName: string, folder: string = ''): stri
  */
 export async function uploadMultipleToR2(
   files: Array<{
-    buffer: Buffer | Uint8Array | string
+    buffer: Buffer | Uint8Array | string | Blob
     originalName: string
     contentType: string
     folder?: string

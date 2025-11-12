@@ -6,30 +6,9 @@ import { Spin } from 'antd'
 import { useQueryClient } from '@tanstack/react-query'
 import { useApp } from '../lib/providers'
 import { useInfinitePosts } from '../hooks/useInfinitePosts'
-import PostCard from '../components/posts/PostCard'
+import PostCard, { PostWithAuthor } from '../components/posts/PostCard'
 import InfiniteScrollList from '../components/shared/InfiniteScrollList'
 import PullToRefresh from '../components/shared/PullToRefresh'
-
-interface Post {
-  id: string
-  user_id: string
-  title: string | null
-  caption: string | null
-  media_urls: string[]
-  media_type: 'image' | 'video'
-  likes_count: number
-  comments_count: number
-  shares_count: number
-  created_at: string
-  profiles: {
-    id: string
-    name: string
-    avatar_url: string | null
-    is_verified: boolean
-    has_blue_tick: boolean
-  }
-  is_liked?: boolean
-}
 
 export default function HomePage() {
   const { user, selectedCity, isLoading: isUserLoading } = useApp()
@@ -55,7 +34,7 @@ export default function HomePage() {
   } = useInfinitePosts(selectedCity, user?.id || null)
 
   // Flatten paginated data
-  const posts = useMemo(() => {
+  const posts = useMemo<PostWithAuthor[]>(() => {
     return data?.pages.flatMap(page => page.data) || []
   }, [data])
 
@@ -67,7 +46,7 @@ export default function HomePage() {
   }
 
   // Handle post update (optimistic)
-  const handleUpdatePost = (updatedPost: Post) => {
+  const handleUpdatePost = (updatedPost: PostWithAuthor) => {
     queryClient.setQueryData(['posts', 'infinite', selectedCity, user?.id], (oldData: any) => {
       if (!oldData) return oldData
       
@@ -75,7 +54,7 @@ export default function HomePage() {
         ...oldData,
         pages: oldData.pages.map((page: any) => ({
           ...page,
-          data: page.data.map((post: Post) =>
+          data: page.data.map((post: PostWithAuthor) =>
             post.id === updatedPost.id ? updatedPost : post
           ),
         })),
@@ -91,7 +70,7 @@ export default function HomePage() {
         ...oldData,
         pages: oldData.pages.map((page: any) => ({
           ...page,
-          data: page.data.filter((post: Post) => post.id !== postId),
+          data: page.data.filter((post: PostWithAuthor) => post.id !== postId),
         })),
       }
     })

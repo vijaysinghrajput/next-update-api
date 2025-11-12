@@ -179,6 +179,7 @@ export const mockTransactions: PointsTransaction[] = [
     amount: 100,
     description: 'Signup bonus',
     reference_id: null,
+    activity: 'Signup Bonus',
     created_at: '2024-01-15T00:00:00Z'
   },
   {
@@ -188,6 +189,7 @@ export const mockTransactions: PointsTransaction[] = [
     amount: 50,
     description: 'Post liked by 50 users',
     reference_id: 'post-3',
+    activity: 'Engagement Reward',
     created_at: '2024-01-20T09:00:00Z'
   },
   {
@@ -197,6 +199,7 @@ export const mockTransactions: PointsTransaction[] = [
     amount: -2000,
     description: 'Blue tick purchase',
     reference_id: null,
+    activity: 'Blue Tick Purchase',
     created_at: '2024-01-18T12:00:00Z'
   },
   {
@@ -206,6 +209,7 @@ export const mockTransactions: PointsTransaction[] = [
     amount: 500,
     description: 'Bonus points from admin',
     reference_id: null,
+    activity: 'Admin Bonus',
     created_at: '2024-01-17T10:00:00Z'
   }
 ];

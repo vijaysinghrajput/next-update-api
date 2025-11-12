@@ -38,6 +38,7 @@ interface UserProfile {
 interface Post {
   id: string
   user_id: string
+  title: string | null
   caption: string | null
   media_urls: string[]
   media_type: 'image' | 'video'
@@ -168,6 +169,23 @@ export default function UserProfilePage() {
     },
     enabled: !!userId,
   })
+
+  const handlePostUpdate = (updatedPost: any) => {
+    queryClient.setQueryData(['user-posts', userId], (oldData: any) => {
+      if (!oldData) return oldData
+      return (oldData as any[]).map((post) =>
+        post.id === updatedPost.id ? { ...post, ...updatedPost } : post
+      )
+    })
+  }
+
+  const handlePostDelete = (postId: string) => {
+    queryClient.setQueryData(['user-posts', userId], (oldData: any) => {
+      if (!oldData) return oldData
+      return (oldData as any[]).filter((post) => post.id !== postId)
+    })
+    queryClient.invalidateQueries({ queryKey: ['user-profile', userId] })
+  }
 
   // Follow/Unfollow mutation
   const followMutation = useMutation({
@@ -403,6 +421,8 @@ export default function UserProfilePage() {
                     <PostCard 
                       post={post} 
                       currentUserId={currentUser?.id || ''}
+                      onUpdate={handlePostUpdate}
+                      onDelete={handlePostDelete}
                     />
                   </motion.div>
                 ))}

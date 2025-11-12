@@ -1,20 +1,17 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Avatar as AntAvatar, Button, Typography, Space, Badge, Carousel, Modal, Input, message, Spin } from 'antd'
+import { App, Avatar as AntAvatar, Button, Typography, Space, Carousel, Modal, Input, Spin } from 'antd'
 import { 
   HeartOutlined, 
   HeartFilled, 
   MessageOutlined, 
   ShareAltOutlined, 
-  MoreOutlined,
   CheckCircleOutlined,
   CrownOutlined,
   SendOutlined
 } from '@ant-design/icons'
 import { motion, AnimatePresence } from 'framer-motion'
-import Image from 'next/image'
-import Link from 'next/link'
 import { formatRelativeTime, formatNumber } from '../../lib/utils'
 import { socialActions, supabaseClient } from '../../lib/supabase-client'
 import { extractUrls, LinkPreviewData } from '../../utils/linkPreview'
@@ -22,7 +19,8 @@ import { getBasePreviews, enhancePreviews } from '../../utils/linkPreviewCache'
 import LinkPreview from '../shared/LinkPreview'
 import LinkifiedText from '../shared/LinkifiedText'
 import { getProxiedImageUrl } from '../../lib/r2-storage'
-import { Avatar } from '../shared/Avatar'
+import { PostHeader } from './PostHeader'
+import { PostEditModal } from './PostEditModal'
 
 const { Text, Paragraph } = Typography
 
@@ -41,34 +39,41 @@ interface Comment {
   }
 }
 
-interface PostCardProps {
-  post: {
-    id: string
-    user_id: string
-    caption: string | null
-    media_urls: string[]
-    media_type: 'image' | 'video'
-    likes_count: number
-    comments_count: number
-    shares_count: number
-    created_at: string
-    is_liked?: boolean
-    profiles: {
-      id: string
-      name: string
-      avatar_url: string | null
-      is_verified: boolean
-      has_blue_tick: boolean
-    }
-  }
-  currentUserId: string
-  onUpdate?: (post: any) => void
+export interface PostAuthorProfile {
+  id: string
+  name: string
+  avatar_url: string | null
+  is_verified: boolean
+  has_blue_tick: boolean
 }
 
-export default function PostCard({ post, currentUserId, onUpdate }: PostCardProps) {
+export interface PostWithAuthor {
+  id: string
+  user_id: string
+  title?: string | null
+  caption: string | null
+  media_urls: string[]
+  media_type: 'image' | 'video'
+  likes_count: number
+  comments_count: number
+  shares_count: number
+  created_at: string
+  is_liked?: boolean
+  profiles: PostAuthorProfile
+}
+
+interface PostCardProps {
+  post: PostWithAuthor
+  currentUserId: string
+  onUpdate?: (post: PostWithAuthor) => void
+  onDelete?: (postId: string) => void
+}
+
+export default function PostCard({ post, currentUserId, onUpdate, onDelete }: PostCardProps) {
   const [isLiked, setIsLiked] = useState(post.is_liked || false)
   const [likesCount, setLikesCount] = useState(post.likes_count)
   const [commentsCount, setCommentsCount] = useState(post.comments_count)
+  const [sharesCount, setSharesCount] = useState(post.shares_count)
   const [showComments, setShowComments] = useState(false)
   const [comments, setComments] = useState<Comment[]>([])
   const [comment, setComment] = useState('')
@@ -77,6 +82,9 @@ export default function PostCard({ post, currentUserId, onUpdate }: PostCardProp
   const [loadingComments, setLoadingComments] = useState(false)
   const [linkPreviews, setLinkPreviews] = useState<LinkPreviewData[]>([])
   const [isExpanded, setIsExpanded] = useState(false)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isSavingEdit, setIsSavingEdit] = useState(false)
+  const { message: messageApi, modal } = App.useApp()
   
   // Character limit for "Read More"
   const CAPTION_LIMIT = 150
@@ -145,7 +153,7 @@ export default function PostCard({ post, currentUserId, onUpdate }: PostCardProp
       setComments(data || [])
     } catch (error) {
       console.error('Error fetching comments:', error)
-      message.error('Failed to load comments')
+      messageApi.error('Failed to load comments')
     } finally {
       setLoadingComments(false)
     }
@@ -178,11 +186,106 @@ export default function PostCard({ post, currentUserId, onUpdate }: PostCardProp
       // Revert optimistic update on error
       setIsLiked(!newIsLiked)
       setLikesCount(prev => newIsLiked ? prev - 1 : prev + 1)
-      message.error('Failed to update like')
+      messageApi.error('Failed to update like')
     } finally {
       setLoadingLike(false)
     }
   }
+
+  const handleOpenEditModal = () => {
+    setIsEditModalOpen(true)
+  }
+
+  const handleEditSubmit = async (values: {
+    title: string | null
+    caption: string | null
+    mediaUrls?: string[]
+    mediaType?: 'image' | 'video'
+    removedExistingUrls?: string[]
+  }) => {
+    try {
+      setIsSavingEdit(true)
+
+      const updatePayload: {
+        title?: string | null
+        caption?: string | null
+        mediaUrls?: string[]
+        mediaType?: 'image' | 'video'
+        removedExistingUrls?: string[]
+      } = {
+        title: values.title,
+        caption: values.caption,
+      }
+
+      if (typeof values.mediaUrls !== 'undefined') {
+        updatePayload.mediaUrls = values.mediaUrls
+      }
+
+      if (typeof values.mediaType !== 'undefined') {
+        updatePayload.mediaType = values.mediaType
+      }
+
+      if (values.removedExistingUrls && values.removedExistingUrls.length > 0) {
+        updatePayload.removedExistingUrls = values.removedExistingUrls
+      }
+
+      const { data, error } = await socialActions.updatePost(post.id, updatePayload)
+
+      if (error) {
+        throw error
+      }
+
+      const updatedPost = {
+        ...post,
+        ...data,
+        profiles: post.profiles,
+        is_liked: isLiked,
+        likes_count: data?.likes_count ?? likesCount,
+        comments_count: data?.comments_count ?? commentsCount,
+        title: data?.title ?? values.title ?? post.title,
+        caption: data?.caption ?? values.caption ?? post.caption,
+        media_urls: values.mediaUrls ?? data?.media_urls ?? post.media_urls,
+        media_type: values.mediaType ?? data?.media_type ?? post.media_type,
+      }
+
+      onUpdate?.(updatedPost)
+      messageApi.success('Post updated')
+      setIsEditModalOpen(false)
+    } catch (error) {
+      console.error('Failed to update post:', error)
+      messageApi.error('Failed to update post')
+      throw error
+    } finally {
+      setIsSavingEdit(false)
+    }
+  }
+
+  const handleDeletePost = () => {
+    modal.confirm({
+      title: 'Delete this post?',
+      content: 'This will remove the post from public view.',
+      okText: 'Delete',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      centered: true,
+      onOk: async () => {
+        try {
+          const { error } = await socialActions.deletePost(post.id)
+          if (error) {
+            throw error
+          }
+          messageApi.success('Post deleted')
+          onDelete?.(post.id)
+        } catch (error) {
+          console.error('Failed to delete post:', error)
+          messageApi.error('Failed to delete post')
+          throw error
+        }
+      },
+    })
+  }
+
+  const isOwner = post.user_id === currentUserId
 
   const handleComment = async () => {
     if (!comment.trim() || loadingComment) return
@@ -222,73 +325,76 @@ export default function PostCard({ post, currentUserId, onUpdate }: PostCardProp
       // Refresh comments to get real data
       await fetchComments()
     } catch (error) {
-      message.error('Failed to add comment')
+      messageApi.error('Failed to add comment')
     } finally {
       setLoadingComment(false)
     }
   }
 
-  const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: `${post.profiles.name}'s post`,
-        text: post.caption || 'Check out this post!',
-        url: window.location.href,
+  const handleShare = async () => {
+    let channel: string | null = null
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: `${post.profiles.name}'s post`,
+          text: post.caption || 'Check out this post!',
+          url: window.location.href,
+        })
+        channel = 'native_share'
+      } else {
+        await navigator.clipboard.writeText(window.location.href)
+        messageApi.success('Link copied to clipboard!')
+        channel = 'clipboard'
+      }
+
+      const { error } = await socialActions.sharePost(post.id, currentUserId, {
+        channel,
+        metadata: {
+          postOwner: post.profiles.id,
+        },
       })
-    } else {
-      // Fallback to copy link
-      navigator.clipboard.writeText(window.location.href)
-      message.success('Link copied to clipboard!')
+
+      if (error) {
+        throw error
+      }
+
+      setSharesCount(prev => {
+        const next = prev + 1
+        onUpdate?.({
+          ...post,
+          shares_count: next,
+        })
+        return next
+      })
+    } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        return
+      }
+      console.error('Post share failed', error)
+      messageApi.error('Failed to share post')
     }
   }
 
   return (
-    <motion.div
-      className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
-      whileHover={{ y: -2 }}
-      transition={{ duration: 0.2 }}
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 pb-2">
-        <Link href={`/user/${post.user_id}`} className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
-          <AntAvatar
-            src={getProxiedImageUrl(post.profiles.avatar_url)}
-            size={40}
-            className="border-2 border-gray-100"
-          >
-            {post.profiles.name[0]?.toUpperCase()}
-          </AntAvatar>
-          
-          <div>
-            <div className="flex items-center space-x-1">
-              <Text strong className="text-gray-800">
-                {post.profiles.name}
-              </Text>
-              
-              {post.profiles.is_verified && (
-                <CheckCircleOutlined className="text-green-500 text-sm" />
-              )}
-              
-              {post.profiles.has_blue_tick && (
-                <Badge
-                  count={<CrownOutlined className="text-yellow-500" />}
-                  offset={[0, 0]}
-                />
-              )}
-            </div>
-            
-            <Text type="secondary" className="text-xs">
-              {formatRelativeTime(post.created_at)}
-            </Text>
-          </div>
-        </Link>
-        
-        <Button
-          type="text"
-          icon={<MoreOutlined />}
-          className="text-gray-400 hover:text-gray-600"
+    <>
+      <motion.div
+        className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
+        whileHover={{ y: -2 }}
+        transition={{ duration: 0.2 }}
+      >
+        <PostHeader
+          post={post}
+          isOwner={isOwner}
+          onEdit={handleOpenEditModal}
+          onDelete={handleDeletePost}
         />
-      </div>
+
+        {post.title && (
+          <div className="px-4 pb-1">
+            <Text strong className="text-base text-gray-900">{post.title}</Text>
+          </div>
+        )}
 
       {/* Caption */}
       {post.caption && (
@@ -427,7 +533,7 @@ export default function PostCard({ post, currentUserId, onUpdate }: PostCardProp
                 onClick={handleShare}
                 className="flex items-center text-gray-600 hover:bg-green-50"
               >
-                {formatNumber(post.shares_count)}
+                {formatNumber(sharesCount)}
               </Button>
             </motion.div>
           </Space>
@@ -586,5 +692,17 @@ export default function PostCard({ post, currentUserId, onUpdate }: PostCardProp
         </div>
       </Modal>
     </motion.div>
+
+      <PostEditModal
+        open={isEditModalOpen}
+        loading={isSavingEdit}
+        initialTitle={post.title || null}
+        initialCaption={post.caption || null}
+        initialMediaUrls={post.media_urls || []}
+        initialMediaType={post.media_type || 'image'}
+        onCancel={() => setIsEditModalOpen(false)}
+        onSubmit={handleEditSubmit}
+      />
+    </>
   )
 }

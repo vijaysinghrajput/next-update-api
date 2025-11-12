@@ -47,7 +47,7 @@
 ✅ ui-avatars.com          // Avatar generator
 ✅ via.placeholder.com     // Placeholder images
 ✅ *.supabase.co           // Supabase storage
-✅ ghar-khojo.r2.dev       // R2 storage
+✅ pub-6e7642a7bb4b4b13b9e8f03f6af6a982.r2.dev       // R2 storage
 ✅ ** (all HTTPS)          // Fallback for any HTTPS image
 ```
 

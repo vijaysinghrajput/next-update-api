@@ -13,6 +13,7 @@ import PullToRefresh from '../components/shared/PullToRefresh'
 interface Post {
   id: string
   user_id: string
+  title: string | null
   caption: string | null
   media_urls: string[]
   media_type: 'image' | 'video'
@@ -82,6 +83,20 @@ export default function HomePage() {
     })
   }
 
+  const handleDeletePost = (postId: string) => {
+    queryClient.setQueryData(['posts', 'infinite', selectedCity, user?.id], (oldData: any) => {
+      if (!oldData) return oldData
+
+      return {
+        ...oldData,
+        pages: oldData.pages.map((page: any) => ({
+          ...page,
+          data: page.data.filter((post: Post) => post.id !== postId),
+        })),
+      }
+    })
+  }
+
   // Loading state
   if (isUserLoading) {
     return (
@@ -114,6 +129,7 @@ export default function HomePage() {
                   post={post}
                   currentUserId={user.id}
                   onUpdate={handleUpdatePost}
+                  onDelete={handleDeletePost}
                 />
               </div>
             )}

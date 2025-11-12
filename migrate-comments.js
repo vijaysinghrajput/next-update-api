@@ -67,7 +67,7 @@ async function applyMigration() {
   } catch (error) {
     console.error('\n❌ Migration failed:', error.message)
     console.log('\n📝 Manual steps:')
-    console.log('1. Go to: https://supabase.com/dashboard/project/iuiyvteuleqknwkdeqde/editor')
+    console.log('1. Go to: https://supabase.com/dashboard/project/gbmvzpslsakkuwdvmiit/editor')
     console.log('2. Open SQL Editor')
     console.log('3. Copy and run the SQL from: supabase/migrations/001_create_post_comments_table.sql')
     process.exit(1)

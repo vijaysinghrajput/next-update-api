@@ -24,6 +24,7 @@ const { Text } = Typography
 interface TrendingPost {
   id: string
   user_id: string
+  title: string | null
   caption: string | null
   media_urls: string[]
   media_type: 'image' | 'video'
@@ -300,6 +301,9 @@ export default function ExplorePage() {
                     post={post}
                     currentUserId={user?.id || ''}
                     onUpdate={() => queryClient.invalidateQueries({ queryKey: ['trending-posts'] })}
+                    onDelete={() => {
+                      queryClient.invalidateQueries({ queryKey: ['trending-posts'] })
+                    }}
                   />
                 </motion.div>
               ))}

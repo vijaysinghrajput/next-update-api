@@ -5,7 +5,7 @@
 To create the admin user, you need to:
 
 ### 1. Go to Supabase Dashboard
-- Visit your Supabase project at: https://iuiyvteuleqknwkdeqde.supabase.co
+- Visit your Supabase project at: https://gbmvzpslsakkuwdvmiit.supabase.co
 - Go to Authentication → Users
 - Click "Add User"
 

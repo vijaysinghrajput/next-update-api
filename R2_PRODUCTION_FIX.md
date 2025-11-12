@@ -7,7 +7,7 @@ Updated `src/lib/r2-storage.ts` to use **direct public R2 URLs** instead of prox
 ### What Changed:
 - `getProxiedImageUrl()` now returns direct R2 public URLs
 - No more `/api/r2/get?key=...` proxy calls
-- Images load directly from `https://ghar-khojo.r2.dev/` (or your R2 domain)
+- Images load directly from `https://pub-6e7642a7bb4b4b13b9e8f03f6af6a982.r2.dev/` (or your R2 domain)
 - **Upload still works securely** through `/api/r2/upload` API route
 
 ### Why This Fixes It:
@@ -26,7 +26,7 @@ Updated `src/lib/r2-storage.ts` to use **direct public R2 URLs** instead of prox
 
 # Add this variable:
 Name:  NEXT_PUBLIC_R2_PUBLIC_URL
-Value: https://ghar-khojo.r2.dev
+Value: https://pub-6e7642a7bb4b4b13b9e8f03f6af6a982.r2.dev
 ```
 
 **IMPORTANT:** Make sure this matches your actual R2 public domain!
@@ -48,7 +48,7 @@ After the deploy completes (2-3 minutes):
 
 1. Open your site: https://next-update-etluu099y-skyablys-projects.vercel.app
 2. Open browser DevTools (F12)
-3. Check Network tab - images should load from `https://ghar-khojo.r2.dev/...`
+3. Check Network tab - images should load from `https://pub-6e7642a7bb4b4b13b9e8f03f6af6a982.r2.dev/...`
 4. **NO MORE 404 ERRORS!** ✅
 
 ---
@@ -63,8 +63,8 @@ After the deploy completes (2-3 minutes):
 
 ### After Fix (WORKING):
 ```
-✅ GET https://ghar-khojo.r2.dev/posts/abc123.jpg 200 (OK)
-✅ GET https://ghar-khojo.r2.dev/avatars/user456.jpg 200 (OK)
+✅ GET https://pub-6e7642a7bb4b4b13b9e8f03f6af6a982.r2.dev/posts/abc123.jpg 200 (OK)
+✅ GET https://pub-6e7642a7bb4b4b13b9e8f03f6af6a982.r2.dev/avatars/user456.jpg 200 (OK)
 ```
 
 ---
@@ -113,7 +113,7 @@ Your images now load **2x faster** and **never fail**! 🚀
 
 2. **Verify public URL is correct:**
    ```bash
-   curl https://ghar-khojo.r2.dev/
+curl https://pub-6e7642a7bb4b4b13b9e8f03f6af6a982.r2.dev/
    # Should NOT return 404
    ```
 

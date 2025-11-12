@@ -2,9 +2,9 @@
 // Note: We do NOT construct S3 client in the browser. All uploads go through /api/r2/upload
 // to keep credentials on the server. PUBLIC_URL is only used to build returned URLs server-side.
 // ✅ IMPORTANT: Make sure to set this in Vercel environment variables:
-// NEXT_PUBLIC_R2_PUBLIC_URL=https://pub-08e1a83abb1d4ff0ac0fceba0438ba9c.r2.dev
+// NEXT_PUBLIC_R2_PUBLIC_URL=https://pub-6e7642a7bb4b4b13b9e8f03f6af6a982.r2.dev
 // Or your custom domain if using one
-const PUBLIC_URL = (process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-08e1a83abb1d4ff0ac0fceba0438ba9c.r2.dev').trim()
+const PUBLIC_URL = (process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-6e7642a7bb4b4b13b9e8f03f6af6a982.r2.dev').trim()
 
 export interface UploadResult {
   success: boolean
@@ -216,7 +216,11 @@ export function getProxiedImageUrl(url: string | null | undefined): string | nul
   }
   
   // If it's already a valid R2 public URL (new domain), return as is
-  if (url.includes('pub-08e1a83abb1d4ff0ac0fceba0438ba9c.r2.dev/') || (url.includes('pub-') && url.includes('.r2.dev/'))) {
+  if (
+    url.includes('pub-6e7642a7bb4b4b13b9e8f03f6af6a982.r2.dev/') ||
+    url.includes('next-update.r2.dev/') ||
+    (url.includes('pub-') && url.includes('.r2.dev/'))
+  ) {
     return url
   }
   

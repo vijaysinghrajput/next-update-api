@@ -1,7 +1,7 @@
 -- =====================================================
 -- COPY THIS ENTIRE SQL AND RUN IN SUPABASE SQL EDITOR
 -- =====================================================
--- Go to: https://supabase.com/dashboard/project/iuiyvteuleqknwkdeqde/sql/new
+-- Go to: https://supabase.com/dashboard/project/gbmvzpslsakkuwdvmiit/sql/new
 -- Paste this SQL and click "Run"
 -- =====================================================
 

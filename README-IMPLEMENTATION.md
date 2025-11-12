@@ -136,15 +136,22 @@ Create `.env.local` with your provided credentials:
 
 ```env
 # Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=https://iuiyvteuleqknwkdeqde.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here
+NEXT_PUBLIC_SUPABASE_URL=https://gbmvzpslsakkuwdvmiit.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdibXZ6cHNsc2Fra3V3ZHZtaWl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI4NjE2MDIsImV4cCI6MjA3ODQzNzYwMn0.2dnsjsN06b1pIrtXJZx7j1tIuXXOG0D7cRAoXqI0enw
 
 # R2 Storage Configuration  
-R2_BUCKET_NAME=ghar-khojo
+R2_BUCKET_NAME=next-update
 R2_ACCESS_KEY_ID=your_access_key
 R2_SECRET_ACCESS_KEY=your_secret_key
 R2_ENDPOINT=your_r2_endpoint
-R2_PUBLIC_URL=https://ghar-khojo.r2.dev
+R2_PUBLIC_URL=https://pub-6e7642a7bb4b4b13b9e8f03f6af6a982.r2.dev
+
+# Direct Database Access (optional)
+SUPABASE_DB_HOST=db.gbmvzpslsakkuwdvmiit.supabase.co
+SUPABASE_DB_PORT=5432
+SUPABASE_DB_NAME=postgres
+SUPABASE_DB_USER=postgres
+SUPABASE_DB_PASSWORD=Next@411..,,
 ```
 
 ### 2. Install & Run

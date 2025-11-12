@@ -258,6 +258,183 @@ export const socialActions = {
     return { data, error }
   },
 
+  sharePost: async (
+    postId: string,
+    userId: string,
+    options?: {
+      channel?: string | null
+      metadata?: Record<string, any>
+    }
+  ) => {
+    const { data, error } = await supabaseClient
+      .from('post_shares')
+      .insert({
+        post_id: postId,
+        user_id: userId,
+        share_channel: options?.channel ?? null,
+        metadata: options?.metadata ?? {}
+      })
+
+    return { data, error }
+  },
+
+  logAppShare: async (
+    userId: string,
+    options?: {
+      target?: string | null
+      channel?: string | null
+      metadata?: Record<string, any>
+    }
+  ) => {
+    const { data, error } = await supabaseClient
+      .from('app_share_events')
+      .insert({
+        user_id: userId,
+        share_target: options?.target ?? null,
+        share_channel: options?.channel ?? null,
+        metadata: options?.metadata ?? {}
+      })
+
+    return { data, error }
+  },
+
+  updatePost: async (
+    postId: string,
+    updates: {
+      title?: string | null
+      caption?: string | null
+      mediaUrls?: string[]
+      mediaType?: 'image' | 'video'
+      removedExistingUrls?: string[]
+    }
+  ) => {
+    const updateMedia =
+      typeof updates.mediaUrls !== 'undefined' ||
+      typeof updates.mediaType !== 'undefined' ||
+      typeof updates.removedExistingUrls !== 'undefined'
+
+    const { data, error } = await supabaseClient.rpc('update_post_content', {
+      p_post_id: postId,
+      p_title: updates.title ?? null,
+      p_caption: updates.caption ?? null,
+      p_media_urls: updateMedia ? updates.mediaUrls ?? [] : null,
+      p_media_type: updateMedia ? updates.mediaType ?? null : null,
+      p_update_media: updateMedia,
+    })
+
+    if (!error) {
+      return { data, error: null }
+    }
+
+    if (error.code !== 'PGRST202') {
+      return { data, error }
+    }
+
+    const payload: Record<string, any> = {}
+
+    if (typeof updates.title !== 'undefined') {
+      payload.title = updates.title ?? null
+    }
+
+    if (typeof updates.caption !== 'undefined') {
+      payload.caption = updates.caption ?? null
+    }
+
+    if (typeof updates.mediaUrls !== 'undefined') {
+      payload.mediaUrls = updates.mediaUrls
+    }
+
+    if (typeof updates.mediaType !== 'undefined') {
+      payload.mediaType = updates.mediaType
+    }
+
+    if (typeof updates.removedExistingUrls !== 'undefined') {
+      payload.removedExistingUrls = updates.removedExistingUrls
+    }
+
+    const { data: sessionData } = await supabaseClient.auth.getSession()
+    const accessToken = sessionData.session?.access_token
+
+    const response = await fetch(`/api/posts/${postId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+      body: JSON.stringify(payload),
+    })
+
+    if (!response.ok) {
+      let body: any = null
+      try {
+        body = await response.json()
+      } catch (parseError) {
+        body = null
+      }
+
+      return {
+        data: null,
+        error: {
+          message: body?.error || 'Failed to update post',
+        } as any,
+      }
+    }
+
+    const body = await response.json()
+
+    return {
+      data: body?.data ?? null,
+      error: null,
+    }
+  },
+
+  deletePost: async (postId: string) => {
+    const { data, error } = await supabaseClient.rpc('archive_post', {
+      p_post_id: postId,
+    })
+
+    if (!error) {
+      return { data, error }
+    }
+
+    if (error.code === 'PGRST202' || error.code === '42501') {
+      const { data: sessionData } = await supabaseClient.auth.getSession()
+      const accessToken = sessionData.session?.access_token
+
+      const response = await fetch(`/api/posts/${postId}/archive`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+      })
+
+      if (!response.ok) {
+        let body: any = null
+        try {
+          body = await response.json()
+        } catch (parseError) {
+          body = null
+        }
+
+        return {
+          data: null,
+          error: {
+            message: body?.error || 'Failed to delete post',
+          } as any,
+        }
+      }
+
+      const body = await response.json()
+      return {
+        data: body?.data ?? null,
+        error: null,
+      }
+    }
+
+    return { data, error }
+  },
+
   purchaseBlueTick: async (userId: string) => {
     // Start transaction
     const { data, error } = await supabaseClient.rpc('purchase_blue_tick', {

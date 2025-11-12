@@ -30,7 +30,7 @@ async function testConnection() {
       if (tableError.message.includes('relation "public.post_comments" does not exist')) {
         console.log('❌ Table does not exist!')
         console.log('📝 Please run the migration first:')
-        console.log('   1. Open: https://supabase.com/dashboard/project/iuiyvteuleqknwkdeqde/editor')
+        console.log('   1. Open: https://supabase.com/dashboard/project/gbmvzpslsakkuwdvmiit/editor')
         console.log('   2. Run the SQL from SETUP_COMMENTS.md\n')
         return false
       }

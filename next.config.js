@@ -19,11 +19,11 @@ const nextConfig = {
       // R2 Storage
       {
         protocol: 'https',
-        hostname: 'ghar-khojo.r2.dev',
+        hostname: 'pub-6e7642a7bb4b4b13b9e8f03f6af6a982.r2.dev',
       },
       {
         protocol: 'https',
-        hostname: 'pub-08e1a83abb1d4ff0ac0fceba0438ba9c.r2.dev',
+        hostname: 'next-update.r2.dev',
       },
       // YouTube
       {

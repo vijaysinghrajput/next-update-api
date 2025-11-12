@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { Avatar, Button, Typography, Space, Tabs, Card, Tag, Modal, Upload, Form, Input, Select, message, App } from 'antd'
+import { Avatar, Button, Typography, Space, Tabs, Card, Tag, Modal, Upload, Form, Input, Select, App } from 'antd'
 import { 
   UserOutlined, 
   EditOutlined, 
@@ -16,9 +16,12 @@ import {
 import { motion } from 'framer-motion'
 import { useApp } from '../../lib/providers'
 import { useRouter, usePathname } from 'next/navigation'
-import { supabaseClient } from '../../lib/supabase-client'
+import { socialActions, supabaseClient } from '../../lib/supabase-client'
 import { formatNumber } from '../../lib/utils'
 import { uploadToR2, generateFileKey, getProxiedImageUrl } from '../../lib/r2-storage'
+import { PostList } from '../../components/posts/PostList'
+import type { PostWithAuthor } from '../../components/posts/PostCard'
+import { usePostUpdateHandlers } from '../../hooks/usePostUpdateHandlers'
 
 const { Title, Text } = Typography
 // Removed deprecated TabPane import
@@ -29,7 +32,7 @@ export default function ProfilePage() {
   const { message: messageApi } = App.useApp()
   const router = useRouter()
   const pathname = usePathname()
-  const [posts, setPosts] = useState<any[]>([])
+  const [posts, setPosts] = useState<PostWithAuthor[]>([])
   const [cities, setCities] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [showEditProfile, setShowEditProfile] = useState(false)
@@ -38,78 +41,137 @@ export default function ProfilePage() {
   const [kycRejectionReason, setKycRejectionReason] = useState<string | null>(null)
   const [followersCount, setFollowersCount] = useState(0)
   const [followingCount, setFollowingCount] = useState(0)
+  const [isPostsLoading, setIsPostsLoading] = useState(true)
   const [form] = Form.useForm()
   const [kycForm] = Form.useForm()
 
   const fetchData = useCallback(async () => {
-    if (!user) return
-
-    // Fetch user's posts
-    const { data: postsData } = await supabaseClient
-      .from('posts')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('is_active', true)
-      .order('created_at', { ascending: false })
-
-    // Fetch cities
-    const { data: citiesData } = await supabaseClient
-      .from('cities')
-      .select('*')
-      .eq('is_active', true)
-      .order('name')
-
-    // Fetch followers and following counts
-    const [followersResult, followingResult] = await Promise.all([
-      supabaseClient
-        .from('follows')
-        .select('id', { count: 'exact', head: true })
-        .eq('following_id', user.id),
-      supabaseClient
-        .from('follows')
-        .select('id', { count: 'exact', head: true })
-        .eq('follower_id', user.id)
-    ])
-
-    setPosts(postsData || [])
-    setCities(citiesData || [])
-    setFollowersCount(followersResult.count || 0)
-    setFollowingCount(followingResult.count || 0)
-
-    // Fetch latest KYC submission
-    const { data: kyc } = await supabaseClient
-      .from('kyc_submissions')
-      .select('status, rejection_reason')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    if (kyc?.status) {
-      setKycStatus(kyc.status as any)
-      setKycRejectionReason(kyc.rejection_reason || null)
-    } else {
-      setKycStatus('none')
-      setKycRejectionReason(null)
+    if (!user) {
+      setPosts([])
+      setIsPostsLoading(false)
+      return
     }
-  }, [user])
+
+    setIsPostsLoading(true)
+
+    try {
+      const [
+        postsResponse,
+        citiesResponse,
+        followersResponse,
+        followingResponse,
+        kycResponse,
+      ] = await Promise.all([
+        supabaseClient
+          .from('posts')
+          .select(`
+            *,
+            profiles:user_id (
+              id,
+              name,
+              avatar_url,
+              is_verified,
+              has_blue_tick
+            )
+          `)
+          .eq('user_id', user.id)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false }),
+        supabaseClient
+          .from('cities')
+          .select('*')
+          .eq('is_active', true)
+          .order('name'),
+        supabaseClient
+          .from('follows')
+          .select('id', { count: 'exact', head: true })
+          .eq('following_id', user.id),
+        supabaseClient
+          .from('follows')
+          .select('id', { count: 'exact', head: true })
+          .eq('follower_id', user.id),
+        supabaseClient
+          .from('kyc_submissions')
+          .select('status, rejection_reason')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ])
+
+      if (postsResponse.error) throw postsResponse.error
+      if (citiesResponse.error) throw citiesResponse.error
+      if (followersResponse.error) throw followersResponse.error
+      if (followingResponse.error) throw followingResponse.error
+      if (kycResponse.error) throw kycResponse.error
+
+      const postsData: PostWithAuthor[] = (postsResponse.data || []).map((post) => ({
+        ...post,
+        profiles: post.profiles || {
+          id: user.id,
+          name: user.name,
+          avatar_url: (user as any).avatar_url ?? null,
+          is_verified: (user as any).is_verified ?? false,
+          has_blue_tick: (user as any).has_blue_tick ?? false,
+        },
+      }))
+
+      setPosts(postsData)
+      setCities(citiesResponse.data || [])
+      setFollowersCount(followersResponse.count || 0)
+      setFollowingCount(followingResponse.count || 0)
+
+      if (kycResponse.data?.status) {
+        setKycStatus(kycResponse.data.status as any)
+        setKycRejectionReason(kycResponse.data.rejection_reason || null)
+      } else {
+        setKycStatus('none')
+        setKycRejectionReason(null)
+      }
+    } catch (error) {
+      console.error('Failed to load profile data:', error)
+      messageApi.error('Failed to load profile data')
+    } finally {
+      setIsPostsLoading(false)
+    }
+  }, [user, messageApi])
+
+  const { handleUpdate: handlePostUpdate, handleDelete: handlePostDelete } = usePostUpdateHandlers({
+    mode: 'local',
+    setPosts,
+  })
 
   useEffect(() => {
-    if (!isLoading) {
+    if (!isLoading && user) {
       fetchData()
     }
-  }, [fetchData, isLoading, pathname])
+
+    if (!isLoading && !user) {
+      setPosts([])
+      setIsPostsLoading(false)
+    }
+  }, [fetchData, isLoading, pathname, user])
 
   useEffect(() => {
+    if (!user) {
+      return
+    }
+
     const onFocus = () => fetchData()
-    const onVisible = () => { if (document.visibilityState === 'visible') fetchData() }
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        fetchData()
+      }
+    }
+
     window.addEventListener('focus', onFocus)
     document.addEventListener('visibilitychange', onVisible)
+
     return () => {
       window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [fetchData])
+  }, [fetchData, user])
 
   const handleUpdateProfile = async (values: any) => {
     setLoading(true)
@@ -203,18 +265,39 @@ export default function ProfilePage() {
     }
   }
 
-  const shareProfile = () => {
+  const shareProfile = async () => {
     const referralLink = `${window.location.origin}/auth/register?ref=${user?.referral_code}`
+    let channel: string | null = null
     
-    if (navigator.share) {
-      navigator.share({
-        title: `Join ${user?.name} on Ghar Khojo!`,
-        text: `Use my referral code ${user?.referral_code} and get 100 points!`,
-        url: referralLink,
-      })
-    } else {
-      navigator.clipboard.writeText(referralLink)
-      messageApi.success('Referral link copied to clipboard!')
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: `Join ${user?.name} on Ghar Khojo!`,
+          text: `Use my referral code ${user?.referral_code} and get 100 points!`,
+          url: referralLink,
+        })
+        channel = 'native_share'
+      } else {
+        await navigator.clipboard.writeText(referralLink)
+        messageApi.success('Referral link copied to clipboard!')
+        channel = 'clipboard'
+      }
+
+      if (user) {
+        await socialActions.logAppShare(user.id, {
+          target: 'profile_share',
+          channel,
+          metadata: {
+            referralCode: user.referral_code,
+          },
+        })
+      }
+    } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        return
+      }
+      console.error('Failed to share profile', error)
+      messageApi.error('Unable to share your profile right now.')
     }
   }
 
@@ -386,9 +469,14 @@ export default function ProfilePage() {
                 key: 'posts',
                 label: 'Posts',
                 children: (
-                  <div className="grid grid-cols-3 gap-2">
-                    {posts.length === 0 ? (
-                      <div className="col-span-3 text-center py-12 text-gray-500">
+                  <PostList
+                    posts={posts}
+                    currentUserId={user.id}
+                    isLoading={isPostsLoading}
+                    onUpdate={handlePostUpdate}
+                    onDelete={handlePostDelete}
+                    emptyState={
+                      <div className="text-center py-12 text-gray-500">
                         <img
                           src="/empty-feed.svg"
                           alt="No posts"
@@ -396,16 +484,8 @@ export default function ProfilePage() {
                         />
                         <Text>No posts yet. Start sharing!</Text>
                       </div>
-                    ) : (
-                      posts.map((post: any) => (
-                        <div key={post.id} className="aspect-square bg-gray-200 rounded-lg overflow-hidden">
-                          {post.media_urls?.length > 0 && (
-                            <img src={getProxiedImageUrl(post.media_urls[0]) || post.media_urls[0]} alt="Post" className="w-full h-full object-cover" />
-                          )}
-                        </div>
-                      ))
-                    )}
-                  </div>
+                    }
+                  />
                 )
               },
               {

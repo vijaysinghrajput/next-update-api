@@ -19,7 +19,7 @@
 ## 🔧 Step 1: Fix Database
 
 ### Go to Supabase Dashboard:
-1. Open: https://supabase.com/dashboard/project/iuiyvteuleqknwkdeqde
+1. Open: https://supabase.com/dashboard/project/gbmvzpslsakkuwdvmiit
 2. Click **SQL Editor** in left sidebar
 3. Click **New Query**
 4. Copy entire content from `/ADD_PROFILE_COUNTS.sql`
@@ -42,10 +42,10 @@ After running SQL, test:
 node << 'EOF'
 const https = require('https');
 https.get({
-  hostname: 'iuiyvteuleqknwkdeqde.supabase.co',
+  hostname: 'gbmvzpslsakkuwdvmiit.supabase.co',
   path: '/rest/v1/profiles?select=id,name,followers_count,following_count,posts_count&limit=1',
   headers: {
-    'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1aXl2dGV1bGVxa253a2RlcWRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIxNTM3ODIsImV4cCI6MjA3NzcyOTc4Mn0.5HWVOhOPPdQ_eJQ6lP2BPzQjd_X-BzpVH52zXtS3TeQ'
+    'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdibXZ6cHNsc2Fra3V3ZHZtaWl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI4NjE2MDIsImV4cCI6MjA3ODQzNzYwMn0.2dnsjsN06b1pIrtXJZx7j1tIuXXOG0D7cRAoXqI0enw'
   }
 }, (res) => {
   let data = '';

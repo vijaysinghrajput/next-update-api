@@ -23,7 +23,7 @@
 
 **Option 1: Supabase Dashboard (Recommended)**
 
-1. Go to: https://supabase.com/dashboard/project/iuiyvteuleqknwkdeqde/editor
+1. Go to: https://supabase.com/dashboard/project/gbmvzpslsakkuwdvmiit/editor
 
 2. Click **SQL Editor** → **New query**
 
@@ -162,7 +162,7 @@ Check the full migration file: `supabase/migrations/001_create_post_comments_tab
 ---
 
 **Your Supabase Project**: 
-- **URL**: https://iuiyvteuleqknwkdeqde.supabase.co
-- **Dashboard**: https://supabase.com/dashboard/project/iuiyvteuleqknwkdeqde
+- **URL**: https://gbmvzpslsakkuwdvmiit.supabase.co
+- **Dashboard**: https://supabase.com/dashboard/project/gbmvzpslsakkuwdvmiit
 
 **Status**: 🟢 Ready to apply migration!

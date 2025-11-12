@@ -6,6 +6,7 @@ import { Spin } from 'antd'
 import { useQueryClient } from '@tanstack/react-query'
 import { useApp } from '../lib/providers'
 import { useInfinitePosts } from '../hooks/useInfinitePosts'
+import { usePostUpdateHandlers } from '../hooks/usePostUpdateHandlers'
 import PostCard from '../components/posts/PostCard'
 import InfiniteScrollList from '../components/shared/InfiniteScrollList'
 import PullToRefresh from '../components/shared/PullToRefresh'
@@ -13,6 +14,7 @@ import PullToRefresh from '../components/shared/PullToRefresh'
 interface Post {
   id: string
   user_id: string
+  title: string | null
   caption: string | null
   media_urls: string[]
   media_type: 'image' | 'video'
@@ -70,22 +72,11 @@ export default function HomePage() {
     await refetch()
   }
 
-  // Handle post update (optimistic)
-  const handleUpdatePost = (updatedPost: Post) => {
-    queryClient.setQueryData(['posts', 'infinite', selectedCity, user?.id], (oldData: any) => {
-      if (!oldData) return oldData
-      
-      return {
-        ...oldData,
-        pages: oldData.pages.map((page: any) => ({
-          ...page,
-          data: page.data.map((post: Post) =>
-            post.id === updatedPost.id ? updatedPost : post
-          ),
-        })),
-      }
-    })
-  }
+  const { handleUpdate: handleUpdatePost, handleDelete: handleDeletePost } = usePostUpdateHandlers({
+    mode: 'react-query',
+    queryClient,
+    queryKey: ['posts', 'infinite', selectedCity, user?.id],
+  })
 
   // Loading state - show spinner while user or city is loading
   if (isUserLoading || !isCityReady) {
@@ -131,6 +122,7 @@ export default function HomePage() {
                   post={post}
                   currentUserId={user.id}
                   onUpdate={handleUpdatePost}
+                  onDelete={handleDeletePost}
                 />
               </div>
             )}

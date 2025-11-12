@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { Card, Typography, Button, message, Space, Avatar, Statistic, Tag } from 'antd'
 import { GiftOutlined, CopyOutlined, ShareAltOutlined, UserAddOutlined } from '@ant-design/icons'
 import { motion } from 'framer-motion'
-import { supabaseClient } from '../../lib/supabase-client'
+import { socialActions, supabaseClient } from '../../lib/supabase-client'
 import { useApp } from '../../lib/providers'
 
 const { Title, Text, Paragraph } = Typography
@@ -76,18 +76,39 @@ export default function ReferralCode() {
     }
   }
 
-  const shareReferralLink = () => {
+  const shareReferralLink = async () => {
     const shareUrl = `${window.location.origin}/auth/register?ref=${referralData?.referralCode}`
+    let channel: string | null = null
     
-    if (navigator.share) {
-      navigator.share({
-        title: 'Join Next Update',
-        text: 'Join me on Next Update and we both get 100 bonus points!',
-        url: shareUrl
-      })
-    } else {
-      navigator.clipboard.writeText(shareUrl)
-      message.success('Referral link copied to clipboard!')
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: 'Join Next Update',
+          text: 'Join me on Next Update and we both get 100 bonus points!',
+          url: shareUrl
+        })
+        channel = 'native_share'
+      } else {
+        await navigator.clipboard.writeText(shareUrl)
+        message.success('Referral link copied to clipboard!')
+        channel = 'clipboard'
+      }
+
+      if (user) {
+        await socialActions.logAppShare(user.id, {
+          target: 'referral_link',
+          channel,
+          metadata: {
+            referralCode: referralData?.referralCode,
+          },
+        })
+      }
+    } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        return
+      }
+      console.error('Failed to share referral link', error)
+      message.error('Unable to share referral link right now.')
     }
   }
 

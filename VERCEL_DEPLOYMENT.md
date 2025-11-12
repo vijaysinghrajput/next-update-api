@@ -33,16 +33,16 @@
 4. **Add Environment Variables**
    Click "Environment Variables" and add:
    
-   ```env
-   NEXT_PUBLIC_SUPABASE_URL=https://iuiyvteuleqknwkdeqde.supabase.co
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1aXl2dGV1bGVxa253a2RlcWRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIxNTM3ODIsImV4cCI6MjA3NzcyOTc4Mn0.5HWVOhOPPdQ_eJQ6lP2BPzQjd_X-BzpVH52zXtS3TeQ
-   SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1aXl2dGV1bGVxa253a2RlcWRlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjE1Mzc4MiwiZXhwIjoyMDc3NzI5NzgyfQ.RXEzI0KZNQSV4y3wXJRnqtP1JYYrZjKEJZd8QaLJRrM
-   R2_ACCESS_KEY_ID=your_r2_access_key
-   R2_SECRET_ACCESS_KEY=your_r2_secret_key
-   R2_BUCKET_NAME=your_bucket_name
-   R2_ENDPOINT=your_r2_endpoint
-   R2_PUBLIC_URL=your_r2_public_url
-   ```
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://gbmvzpslsakkuwdvmiit.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdibXZ6cHNsc2Fra3V3ZHZtaWl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI4NjE2MDIsImV4cCI6MjA3ODQzNzYwMn0.2dnsjsN06b1pIrtXJZx7j1tIuXXOG0D7cRAoXqI0enw
+SUPABASE_SERVICE_ROLE_KEY=<copy-from-new-supabase-project>
+R2_ACCESS_KEY_ID=your_r2_access_key
+R2_SECRET_ACCESS_KEY=your_r2_secret_key
+R2_BUCKET_NAME=your_bucket_name
+R2_ENDPOINT=your_r2_endpoint
+R2_PUBLIC_URL=your_r2_public_url
+```
 
 5. **Deploy**
    - Click "Deploy"

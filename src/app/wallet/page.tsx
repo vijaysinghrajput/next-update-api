@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
-import { Card, Typography, Button, Space, List, Tag, Modal, Upload, Form, InputNumber, Input, message, Spin, Alert, App } from 'antd'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import { Card, Typography, Button, Space, List, Tag, Modal, Upload, Form, InputNumber, Spin, Alert, App } from 'antd'
 import { 
   WalletOutlined, 
   PlusOutlined, 
@@ -16,8 +16,9 @@ import { motion } from 'framer-motion'
 import { usePathname } from 'next/navigation'
 import { useApp } from '../../lib/providers'
 import { supabaseClient } from '../../lib/supabase-client'
+import type { WalletSettings as WalletSettingsRow } from '../../lib/supabase'
 import { formatNumber, formatRelativeTime, POINTS_CONFIG } from '../../lib/utils'
-import { uploadToR2, generateFileKey, getProxiedImageUrl } from '../../lib/r2-storage'
+import { uploadToR2, generateFileKey } from '../../lib/r2-storage'
 
 const { Title, Text } = Typography
 
@@ -26,6 +27,8 @@ interface Transaction {
   type: 'earned' | 'spent' | 'admin_credit' | 'admin_debit'
   amount: number
   description: string
+  activity: string | null
+  reference_id: string | null
   created_at: string
 }
 
@@ -36,6 +39,18 @@ interface PaymentRequest {
   screenshot_url: string
   admin_notes: string | null
   created_at: string
+}
+
+interface ResolvedWalletSettings {
+  id: string
+  upi_id: string | null
+  account_name: string | null
+  bank_name: string | null
+  account_number: string | null
+  ifsc_code: string | null
+  points_rate: number
+  preset_amounts: number[]
+  payment_instructions: string | null
 }
 
 export default function WalletPage() {
@@ -49,13 +64,50 @@ export default function WalletPage() {
   const [showBlueTick, setShowBlueTick] = useState(false)
   const [buyPointsLoading, setBuyPointsLoading] = useState(false)
   const [blueTickLoading, setBlueTickLoading] = useState(false)
+  const [walletSettings, setWalletSettings] = useState<ResolvedWalletSettings | null>(null)
+  const [settingsLoading, setSettingsLoading] = useState(true)
   const [form] = Form.useForm()
 
-  const UPI_ID = process.env.NEXT_PUBLIC_UPI_ID || 'upi@example@okaxis'
-  const BANK_NAME = process.env.NEXT_PUBLIC_BANK_NAME || 'Example Bank'
-  const BANK_ACCOUNT = process.env.NEXT_PUBLIC_BANK_ACCOUNT || '0000000000'
-  const BANK_IFSC = process.env.NEXT_PUBLIC_BANK_IFSC || 'EXAMPL000000'
-  const ACCOUNT_NAME = process.env.NEXT_PUBLIC_ACCOUNT_NAME || 'Next Update'
+  const fetchSettings = useCallback(async () => {
+    setSettingsLoading(true)
+    try {
+      const { data, error } = await supabaseClient
+        .from('wallet_settings')
+        .select('*')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+
+      if (error) throw error
+
+      const latest = (data?.[0] ?? null) as WalletSettingsRow | null
+
+      if (latest) {
+        setWalletSettings({
+          id: latest.id,
+          upi_id: latest.upi_id,
+          account_name: latest.account_name,
+          bank_name: latest.bank_name,
+          account_number: latest.account_number,
+          ifsc_code: latest.ifsc_code,
+          points_rate: Number(latest.points_rate ?? 1) || 1,
+          preset_amounts: (latest.preset_amounts ?? [])
+            .map((value) => Number(value))
+            .filter((value) => !Number.isNaN(value) && value > 0)
+            .sort((a, b) => a - b),
+          payment_instructions: latest.payment_instructions
+        })
+      } else {
+        setWalletSettings(null)
+        messageApi.warning('Wallet configuration missing. Please contact support.')
+      }
+    } catch (error) {
+      console.error('Error fetching wallet settings:', error)
+      messageApi.error('Failed to load wallet settings')
+      setWalletSettings(null)
+    } finally {
+      setSettingsLoading(false)
+    }
+  }, [messageApi])
 
   const fetchData = useCallback(async () => {
     if (!user) return
@@ -65,7 +117,7 @@ export default function WalletPage() {
       // Fetch transactions
       const { data: transactionsData } = await supabaseClient
         .from('points_transactions')
-        .select('*')
+        .select('id, type, amount, description, created_at, activity, reference_id')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(20)
@@ -88,25 +140,42 @@ export default function WalletPage() {
   }, [user])
 
   useEffect(() => {
+    fetchSettings()
+  }, [fetchSettings])
+
+  useEffect(() => {
     if (!isLoading) {
       fetchData()
     }
-  }, [fetchData, isLoading, pathname])
+  }, [fetchData, fetchSettings, isLoading, pathname])
 
   useEffect(() => {
-    const onFocus = () => fetchData()
-    const onVisible = () => { if (document.visibilityState === 'visible') fetchData() }
+    const onFocus = () => {
+      fetchData()
+      fetchSettings()
+    }
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        fetchData()
+        fetchSettings()
+      }
+    }
     window.addEventListener('focus', onFocus)
     document.addEventListener('visibilitychange', onVisible)
     return () => {
       window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [fetchData])
+  }, [fetchData, fetchSettings])
 
   const handleBuyPoints = async (values: { amount: number; screenshot: any }) => {
     setBuyPointsLoading(true)
     try {
+      if (!walletSettings) {
+        messageApi.error('Wallet configuration is missing. Please try again later.')
+        return
+      }
+
       const file = values.screenshot?.[0]?.originFileObj as File | undefined
       console.debug('[BuyPoints] Form values', { values, hasFile: !!file })
       
@@ -171,45 +240,35 @@ export default function WalletPage() {
   }
 
   const handleBlueTick = async () => {
-    if (!user?.is_verified) {
-      messageApi.warning('You need to complete KYC verification first')
-      return
-    }
-
-    if (user.points_balance < POINTS_CONFIG.BLUE_TICK_COST) {
-      messageApi.warning('Insufficient points. You need 2000 points for blue tick.')
-      return
-    }
-
     setBlueTickLoading(true)
     try {
-      // Deduct points and add blue tick
-      const { error: transactionError } = await supabaseClient
-        .from('points_transactions')
-        .insert({
-          user_id: user.id,
-          type: 'spent',
-          amount: -POINTS_CONFIG.BLUE_TICK_COST,
-          description: 'Blue tick purchase'
-        })
+      const { error } = await supabaseClient.rpc('purchase_blue_tick')
 
-      if (transactionError) throw transactionError
-
-      // Update profile
-      const { error: profileError } = await supabaseClient
-        .from('profiles')
-        .update({
-          has_blue_tick: true,
-          points_balance: user.points_balance - POINTS_CONFIG.BLUE_TICK_COST
-        })
-        .eq('id', user.id)
-
-      if (profileError) throw profileError
+      if (error) {
+        switch (error.code) {
+          case 'NTKYC':
+            messageApi.warning('You need to complete KYC verification first')
+            break
+          case 'PTLOW':
+            messageApi.warning('Insufficient points for blue tick purchase')
+            break
+          case 'BTOWN':
+            messageApi.info('You already have a blue tick badge')
+            break
+          case '42501':
+            messageApi.warning('You must be logged in to purchase a blue tick')
+            break
+          default:
+            messageApi.error(error.message || 'Failed to purchase blue tick')
+        }
+        return
+      }
 
       messageApi.success('Blue tick purchased successfully! 🎉')
       setShowBlueTick(false)
-      await refreshUser()
+      await Promise.all([refreshUser(), fetchData()])
     } catch (error) {
+      console.error('[BlueTick] purchase error', error)
       messageApi.error('Failed to purchase blue tick')
     } finally {
       setBlueTickLoading(false)
@@ -235,6 +294,127 @@ export default function WalletPage() {
       default: return 'default'
     }
   }
+
+  const getActivityLabel = (activity: string | null) => {
+    if (!activity) return null
+
+    const map: Record<string, string> = {
+      post_create: 'Post published',
+      post_delete: 'Post removed',
+      post_like: 'Post like',
+      post_like_reversal: 'Like removed',
+      post_comment: 'Post comment',
+      post_comment_reversal: 'Comment removed',
+      post_share: 'Post shared',
+      post_share_reversal: 'Share removed',
+      app_share: 'App shared',
+      daily_check_in: 'Daily check-in',
+      referral_bonus: 'Referral bonus'
+    }
+
+    return map[activity] ?? activity.replace(/_/g, ' ')
+  }
+
+  const categorizeTransaction = (transaction: Transaction) => {
+    const activity = transaction.activity
+    const description = transaction.description?.toLowerCase() ?? ''
+
+    if (transaction.amount < 0) {
+      if (transaction.description.toLowerCase().includes('blue tick')) {
+        return { key: 'spent_blue_tick', label: 'Blue tick purchase' }
+      }
+      return { key: 'spent', label: 'Spent / Redeemed' }
+    }
+
+    switch (activity) {
+      case 'post_create':
+        return { key: 'post_create', label: 'Post creation rewards' }
+      case 'post_like':
+        return { key: 'post_like', label: 'Post likes' }
+      case 'post_comment':
+        return { key: 'post_comment', label: 'Post comments' }
+      case 'post_share':
+        return { key: 'post_share', label: 'Post shares' }
+      case 'app_share':
+        return { key: 'app_share', label: 'App shares' }
+      case 'referral_bonus':
+        return { key: 'referral_bonus', label: 'Referral bonuses' }
+      case 'daily_check_in':
+        return { key: 'daily_check_in', label: 'Daily check-ins' }
+      default:
+        break
+    }
+
+    if (description.includes('referral')) {
+      return { key: 'referral_bonus', label: 'Referral bonuses' }
+    }
+
+    if (transaction.type === 'admin_credit') {
+      if (description.includes('payment') || description.includes('buy points') || description.includes('purchase')) {
+        return { key: 'purchased', label: 'Bought points' }
+      }
+      return { key: 'admin_credit', label: 'Manual credits' }
+    }
+
+    return { key: 'other', label: 'Other earnings' }
+  }
+
+  const pointsBreakdown = useMemo(() => {
+    if (!transactions.length) return []
+
+    const summary = transactions.reduce<Record<string, { label: string; total: number; count: number }>>((acc, transaction) => {
+      const category = categorizeTransaction(transaction)
+      const existing = acc[category.key] || { label: category.label, total: 0, count: 0 }
+
+      existing.total += transaction.amount
+      existing.count += 1
+      acc[category.key] = existing
+
+      return acc
+    }, {})
+
+    return Object.values(summary)
+      .sort((a, b) => Math.abs(b.total) - Math.abs(a.total))
+  }, [transactions])
+
+  const earningActivities = [
+    {
+      key: 'post',
+      label: 'Create a post',
+      points: POINTS_CONFIG.POST_CREATE,
+      hint: 'Share news or updates to earn instantly'
+    },
+    {
+      key: 'app_share',
+      label: 'Share the app',
+      points: POINTS_CONFIG.APP_SHARE,
+      hint: 'Invite friends to Next Update'
+    },
+    {
+      key: 'post_share',
+      label: 'Share a post',
+      points: POINTS_CONFIG.POST_SHARE,
+      hint: 'Spread trending posts with others'
+    },
+    {
+      key: 'post_like',
+      label: 'Like a post',
+      points: POINTS_CONFIG.POST_LIKE,
+      hint: 'Support posts you enjoy'
+    },
+    {
+      key: 'post_comment',
+      label: 'Comment on a post',
+      points: POINTS_CONFIG.POST_COMMENT,
+      hint: 'Join the conversation thoughtfully'
+    },
+    {
+      key: 'daily',
+      label: 'Daily check-in',
+      points: POINTS_CONFIG.DAILY_CHECK_IN,
+      hint: 'Open the app daily to collect a bonus'
+    }
+  ]
 
   if (isLoading) return null
   if (!user) return null
@@ -282,6 +462,7 @@ export default function WalletPage() {
               onClick={() => setShowBuyPoints(true)}
               className="rounded-full h-12 px-6"
               size="large"
+              disabled={!walletSettings}
             >
               Buy Points
             </Button>
@@ -323,6 +504,66 @@ export default function WalletPage() {
           </Card>
         </motion.div>
 
+        {/* Points Breakdown */}
+        {pointsBreakdown.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.32 }}
+          >
+            <Card title="Points Breakdown" className="rounded-2xl">
+              <List
+                dataSource={pointsBreakdown}
+                renderItem={(item) => (
+                  <List.Item className="border-0 px-0">
+                    <div className="flex justify-between items-center w-full">
+                      <div>
+                        <Text strong>{item.label}</Text>
+                        <div className="text-xs text-gray-500">
+                          {item.count} {item.count === 1 ? 'entry' : 'entries'}
+                        </div>
+                      </div>
+                      <Tag color={item.total >= 0 ? 'blue' : 'red'}>
+                        {item.total > 0 ? '+' : ''}{formatNumber(item.total)} pts
+                      </Tag>
+                    </div>
+                  </List.Item>
+                )}
+              />
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Earn Points Guide */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+        >
+          <Card title="Earn Points" className="rounded-2xl">
+            <List
+              dataSource={earningActivities}
+              renderItem={(activity) => (
+                <List.Item className="border-0 px-0">
+                  <div className="flex justify-between w-full items-center">
+                    <div>
+                      <Text strong>{activity.label}</Text>
+                      {activity.hint && (
+                        <div className="text-xs text-gray-500">
+                          {activity.hint}
+                        </div>
+                      )}
+                    </div>
+                    <Tag color="green">
+                      +{formatNumber(activity.points)} pts
+                    </Tag>
+                  </div>
+                </List.Item>
+              )}
+            />
+          </Card>
+        </motion.div>
+
         {/* Recent Transactions */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -357,7 +598,16 @@ export default function WalletPage() {
                           </Tag>
                         </div>
                       }
-                      description={formatRelativeTime(transaction.created_at)}
+                      description={
+                        <div className="flex items-center gap-2">
+                          {getActivityLabel(transaction.activity) && (
+                            <Tag color="blue" className="m-0">
+                              {getActivityLabel(transaction.activity)}
+                            </Tag>
+                          )}
+                          <span>{formatRelativeTime(transaction.created_at)}</span>
+                        </div>
+                      }
                     />
                   </List.Item>
                 )}
@@ -415,80 +665,99 @@ export default function WalletPage() {
         footer={null}
         className="rounded-2xl"
       >
-        <Form
-          form={form}
-          onFinish={handleBuyPoints}
-          layout="vertical"
-        >
-          <Alert
-            type="info"
-            showIcon
-            message="Rate: 1 INR = 1 point"
-            description={
-              <div className="mt-2">
-                <div className="mb-1"><strong>UPI ID:</strong> {UPI_ID}</div>
-                <div className="mb-1"><strong>Account Name:</strong> {ACCOUNT_NAME}</div>
-                <div className="mb-1"><strong>Bank:</strong> {BANK_NAME}</div>
-                <div className="mb-1"><strong>Account No:</strong> {BANK_ACCOUNT}</div>
-                <div><strong>IFSC:</strong> {BANK_IFSC}</div>
-              </div>
-            }
-            className="mb-4"
-          />
-
-          <div className="grid grid-cols-4 gap-2 mb-3">
-            {[100,500,1000,1500].map(v => (
-              <Button key={v} onClick={() => form.setFieldsValue({ amount: v })}>{v}</Button>
-            ))}
+        {settingsLoading ? (
+          <div className="py-8 flex justify-center">
+            <Spin />
           </div>
-
-          <Form.Item
-            name="amount"
-            label="Points Amount"
-            rules={[{ required: true, message: 'Please enter amount' }]}
+        ) : !walletSettings ? (
+          <Alert
+            type="warning"
+            showIcon
+            message="Wallet configuration missing"
+            description="Please contact support to configure payment details before buying points."
+          />
+        ) : (
+          <Form
+            form={form}
+            onFinish={handleBuyPoints}
+            layout="vertical"
           >
-            <InputNumber
-              min={100}
-              max={10000}
-              step={100}
-              className="w-full"
-              placeholder="Enter points amount"
-              size="large"
+            <Alert
+              type="info"
+              showIcon
+              message={`Rate: 1 INR = ${formatNumber(walletSettings.points_rate)} points`}
+              description={
+                <div className="mt-2 space-y-1 text-sm">
+                  {walletSettings.upi_id && <div><strong>UPI ID:</strong> {walletSettings.upi_id}</div>}
+                  {walletSettings.account_name && <div><strong>Account Name:</strong> {walletSettings.account_name}</div>}
+                  {walletSettings.bank_name && <div><strong>Bank:</strong> {walletSettings.bank_name}</div>}
+                  {walletSettings.account_number && <div><strong>Account No:</strong> {walletSettings.account_number}</div>}
+                  {walletSettings.ifsc_code && <div><strong>IFSC:</strong> {walletSettings.ifsc_code}</div>}
+                  {walletSettings.payment_instructions && (
+                    <div className="text-gray-600">{walletSettings.payment_instructions}</div>
+                  )}
+                </div>
+              }
+              className="mb-4"
             />
-          </Form.Item>
 
-          <Form.Item
-            name="screenshot"
-            label="Payment Screenshot"
-            rules={[{ required: true, message: 'Please upload payment screenshot' }]}
-            valuePropName="fileList"
-            getValueFromEvent={(e) => (Array.isArray(e) ? e : e?.fileList)}
-          >
-            <Upload
-              listType="picture-card"
-              maxCount={1}
-              beforeUpload={() => false}
-              accept="image/*"
-            >
-              <div>
-                <UploadOutlined />
-                <div style={{ marginTop: 8 }}>Upload</div>
+            {walletSettings.preset_amounts.length > 0 && (
+              <div className="grid grid-cols-4 gap-2 mb-3">
+                {walletSettings.preset_amounts.map((value) => (
+                  <Button key={value} onClick={() => form.setFieldsValue({ amount: value })}>
+                    {formatNumber(value)}
+                  </Button>
+                ))}
               </div>
-            </Upload>
-          </Form.Item>
+            )}
 
-          <Form.Item>
-            <Button
-              type="primary"
-              htmlType="submit"
-              loading={buyPointsLoading}
-              className="w-full h-12 rounded-xl"
-              size="large"
+            <Form.Item
+              name="amount"
+              label="Points Amount"
+              rules={[{ required: true, message: 'Please enter amount' }]}
             >
-              Submit Request
-            </Button>
-          </Form.Item>
-        </Form>
+              <InputNumber
+                min={walletSettings.preset_amounts[0] ?? walletSettings.points_rate ?? 1}
+                step={walletSettings.points_rate ?? 1}
+                className="w-full"
+                placeholder="Enter points amount"
+                size="large"
+              />
+            </Form.Item>
+
+            <Form.Item
+              name="screenshot"
+              label="Payment Screenshot"
+              rules={[{ required: true, message: 'Please upload payment screenshot' }]}
+              valuePropName="fileList"
+              getValueFromEvent={(e) => (Array.isArray(e) ? e : e?.fileList)}
+            >
+              <Upload
+                listType="picture-card"
+                maxCount={1}
+                beforeUpload={() => false}
+                accept="image/*"
+              >
+                <div>
+                  <UploadOutlined />
+                  <div style={{ marginTop: 8 }}>Upload</div>
+                </div>
+              </Upload>
+            </Form.Item>
+
+            <Form.Item>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={buyPointsLoading}
+                className="w-full h-12 rounded-xl"
+                size="large"
+              >
+                Submit Request
+              </Button>
+            </Form.Item>
+          </Form>
+        )}
       </Modal>
 
       {/* Blue Tick Modal */}

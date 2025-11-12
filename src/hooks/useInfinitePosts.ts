@@ -7,6 +7,7 @@ const PAGE_SIZE = 10 // Items per page
 interface Post {
   id: string
   user_id: string
+  title: string | null
   caption: string | null
   media_urls: string[]
   media_type: 'image' | 'video'

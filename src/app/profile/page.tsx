@@ -173,6 +173,13 @@ export default function ProfilePage() {
     }
   }, [fetchData, user])
 
+  const getNativeFileMeta = (file: any) => {
+    if (typeof window === 'undefined') return null
+    const store: WeakMap<File, any> | undefined = (window as any).__nativeFileMeta
+    const origin = file?.originFileObj || file
+    return origin && store ? store.get(origin) : null
+  }
+
   const handleUpdateProfile = async (values: any) => {
     setLoading(true)
     try {
@@ -180,12 +187,20 @@ export default function ProfilePage() {
 
       // Handle avatar upload
       if (values.avatar?.file || values.avatar?.fileList?.[0]) {
-        const file = (values.avatar?.file || values.avatar?.fileList?.[0]?.originFileObj) as File
-        const key = generateFileKey(file.name, 'avatars')
-        const result = await uploadToR2(file, key, file.type)
+        const avatarEntry = values.avatar?.file || values.avatar?.fileList?.[0]
+        const nativeMeta = avatarEntry ? getNativeFileMeta(avatarEntry) : null
+        const nativeUrl = avatarEntry?.r2Url || nativeMeta?.url
+        const file = avatarEntry?.originFileObj as File | undefined
 
-        if (result.success) {
-          avatarUrl = result.url
+        if (nativeUrl) {
+          avatarUrl = nativeUrl
+        } else if (file) {
+          const key = generateFileKey(file.name, 'avatars')
+          const result = await uploadToR2(file, key, file.type)
+
+          if (result.success) {
+            avatarUrl = result.url
+          }
         }
       }
 
@@ -215,28 +230,45 @@ export default function ProfilePage() {
   const handleKycSubmission = async (values: any) => {
     setLoading(true)
     try {
-      const frontFile = values.aadharFront?.[0]?.originFileObj
-      const backFile = values.aadharBack?.[0]?.originFileObj
-      console.debug('[KYC] Selected files', { front: !!frontFile, back: !!backFile, values })
+      const frontEntry = values.aadharFront?.[0]
+      const backEntry = values.aadharBack?.[0]
+      const frontNativeMeta = frontEntry ? getNativeFileMeta(frontEntry) : null
+      const backNativeMeta = backEntry ? getNativeFileMeta(backEntry) : null
+      const frontNativeUrl = frontEntry?.r2Url || frontNativeMeta?.url
+      const backNativeUrl = backEntry?.r2Url || backNativeMeta?.url
+      const frontFile = frontEntry?.originFileObj as File | undefined
+      const backFile = backEntry?.originFileObj as File | undefined
+      console.debug('[KYC] Selected files', { frontNative: !!frontNativeUrl, backNative: !!backNativeUrl, front: !!frontFile, back: !!backFile, values })
 
-      if (!frontFile || !backFile) {
+      if ((!frontFile && !frontNativeUrl) || (!backFile && !backNativeUrl)) {
         messageApi.error('Please upload both front and back of Aadhar card')
         return
       }
 
       // Upload files
-      const frontKey = generateFileKey(frontFile.name, 'kyc')
-      const backKey = generateFileKey(backFile.name, 'kyc')
-      
-      const [frontResult, backResult] = await Promise.all([
-        uploadToR2(frontFile as File, frontKey, (frontFile as File).type),
-        uploadToR2(backFile as File, backKey, (backFile as File).type)
-      ])
-      console.debug('[KYC] Upload results', { frontResult, backResult })
+      let frontUrl = frontNativeUrl
+      let backUrl = backNativeUrl
 
-      if (!frontResult.success || !backResult.success) {
-        messageApi.error('Failed to upload documents')
-        return
+      if (!frontUrl && frontFile) {
+        const frontKey = generateFileKey(frontFile.name, 'kyc')
+        const frontResult = await uploadToR2(frontFile, frontKey, frontFile.type)
+        console.debug('[KYC] Front upload result', frontResult)
+        if (!frontResult.success) {
+          messageApi.error('Failed to upload documents')
+          return
+        }
+        frontUrl = frontResult.url!
+      }
+
+      if (!backUrl && backFile) {
+        const backKey = generateFileKey(backFile.name, 'kyc')
+        const backResult = await uploadToR2(backFile, backKey, backFile.type)
+        console.debug('[KYC] Back upload result', backResult)
+        if (!backResult.success) {
+          messageApi.error('Failed to upload documents')
+          return
+        }
+        backUrl = backResult.url!
       }
 
       // Submit KYC
@@ -244,8 +276,8 @@ export default function ProfilePage() {
         .from('kyc_submissions')
         .insert({
           user_id: user!.id,
-          aadhar_front_url: frontResult.url!,
-          aadhar_back_url: backResult.url!,
+          aadhar_front_url: frontUrl!,
+          aadhar_back_url: backUrl!,
           status: 'pending'
         })
         .select('*')

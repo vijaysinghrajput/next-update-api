@@ -116,11 +116,45 @@ export function PostEditModal({
     }
   }
 
+  const getNativeFileMeta = (file: any) => {
+    if (typeof window === 'undefined') return null
+    const store: WeakMap<File, any> | undefined = (window as any).__nativeFileMeta
+    const origin = file?.originFileObj || file
+    return origin && store ? store.get(origin) : null
+  }
+
   const handleUploadChange: UploadProps['onChange'] = ({ fileList: newFileList }) => {
     const limitedList = newFileList.slice(0, MAX_MEDIA_ITEMS)
 
     const normalizedList: EditableUploadFile[] = limitedList.map((file) => {
       const sourceFile = file as EditableUploadFile
+
+      if ((sourceFile as any).r2Url) {
+        const nativeFile = { ...sourceFile } as EditableUploadFile
+        const mediaType =
+          (sourceFile as any).type?.startsWith('video/') || sourceFile.mediaType === 'video'
+            ? 'video'
+            : 'image'
+        nativeFile.mediaType = mediaType
+        nativeFile.existingUrl = (sourceFile as any).r2Url
+        nativeFile.url = (sourceFile as any).r2Url
+        nativeFile.thumbUrl = (sourceFile as any).r2Url
+        nativeFile.originFileObj = undefined
+        return nativeFile
+      }
+
+      const nativeMeta = getNativeFileMeta(sourceFile)
+      if (nativeMeta?.url) {
+        const nativeFile = { ...sourceFile } as EditableUploadFile
+        nativeFile.mediaType =
+          nativeMeta.type?.startsWith('video/') || sourceFile.mediaType === 'video' ? 'video' : 'image'
+        nativeFile.existingUrl = nativeMeta.url
+        nativeFile.url = nativeMeta.url
+        nativeFile.thumbUrl = nativeMeta.url
+        nativeFile.originFileObj = undefined
+        return nativeFile
+      }
+
       const nextFile = { ...file } as EditableUploadFile
 
       if (file.originFileObj) {
@@ -205,8 +239,11 @@ export function PostEditModal({
       const trimmedTitle = values.title?.trim() ? values.title.trim() : null
       const trimmedCaption = values.caption?.trim() ? values.caption.trim() : null
 
-      const existingFiles = fileList.filter((file) => !file.originFileObj && file.existingUrl) as EditableUploadFile[]
-      const newFiles = fileList.filter((file) => file.originFileObj) as EditableUploadFile[]
+      const existingFiles = fileList.filter((file) => {
+        const nativeMeta = getNativeFileMeta(file)
+        return (!file.originFileObj && file.existingUrl) || (file as any).r2Url || nativeMeta?.url
+      }) as EditableUploadFile[]
+      const newFiles = fileList.filter((file) => file.originFileObj && !(file as any).r2Url) as EditableUploadFile[]
 
       let uploadedUrls: string[] = []
 
@@ -235,7 +272,9 @@ export function PostEditModal({
       }
 
       const finalMediaUrls = [
-        ...existingFiles.map((file) => file.existingUrl!).filter(Boolean),
+        ...existingFiles
+          .map((file) => file.existingUrl || (file as any).r2Url || getNativeFileMeta(file)?.url)
+          .filter((url): url is string => !!url),
         ...uploadedUrls,
       ]
 

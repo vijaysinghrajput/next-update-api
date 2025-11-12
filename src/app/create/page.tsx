@@ -60,9 +60,32 @@ export default function CreatePostPage() {
     }
   }, [selectedCity, form])
 
+  const getNativeFileMeta = (file: any) => {
+    if (typeof window === 'undefined') return null
+    const store: WeakMap<File, any> | undefined = (window as any).__nativeFileMeta
+    const origin = file?.originFileObj || file
+    return origin && store ? store.get(origin) : null
+  }
+
   const handleUploadChange = ({ fileList }: any) => {
     // Validate files
     const validFiles = fileList.filter((file: any) => {
+      const nativeMeta = getNativeFileMeta(file)
+      if (nativeMeta?.url) {
+        file.r2Url = nativeMeta.url
+        file.url = nativeMeta.url
+        file.thumbUrl = nativeMeta.url
+        file.status = file.status || 'done'
+        file.type = file.type || nativeMeta.type || 'image/jpeg'
+        file.size = file.size || nativeMeta.size
+        return true
+      }
+      if (file.r2Url) {
+        file.url = file.r2Url
+        file.thumbUrl = file.r2Url
+        file.status = file.status || 'done'
+        return true
+      }
       if (file.originFileObj) {
         const validation = validateMediaFile(file.name, Buffer.from([]))
         const sizeValidation = validateFileSize(Buffer.from([]), 10) // 10MB limit
@@ -81,11 +104,22 @@ export default function CreatePostPage() {
   }
 
   const handlePreview = async (file: any) => {
-    if (!file.url && !file.preview) {
+    const nativeMeta = getNativeFileMeta(file)
+    if (!file.r2Url && nativeMeta?.url) {
+      file.r2Url = nativeMeta.url
+    }
+
+    if (file.r2Url) {
+      setPreviewImage(file.r2Url)
+      setPreviewVisible(true)
+      return
+    }
+
+    if (!file.url && !file.preview && file.originFileObj) {
       file.preview = await getBase64(file.originFileObj)
     }
 
-    setPreviewImage(file.url || file.preview)
+    setPreviewImage(file.url || file.thumbUrl || file.preview)
     setPreviewVisible(true)
   }
 
@@ -190,23 +224,38 @@ export default function CreatePostPage() {
       let mediaUrls: string[] = []
       let mediaType: 'image' | 'video' = 'image'
       if (fileList.length > 0) {
-        const uploadFiles = fileList.map((file: any) => ({
-          buffer: file.originFileObj,
-          originalName: file.name,
-          contentType: file.type,
-          folder: 'posts'
-        }))
+        const nativeFiles = fileList.filter((file: any) => file.r2Url)
+        const newFiles = fileList.filter((file: any) => !file.r2Url && file.originFileObj)
 
-        const uploadResults = await uploadMultipleToR2(uploadFiles)
-        console.debug('[CreatePost] Upload results', uploadResults)
-        const failedUploads = uploadResults.filter(result => !result.success)
-        if (failedUploads.length > 0) {
-          messageApi.error('Some files failed to upload. Please try again.')
-          return
+        if (newFiles.length > 0) {
+          const uploadFiles = newFiles.map((file: any) => ({
+            buffer: file.originFileObj,
+            originalName: file.name,
+            contentType: file.type,
+            folder: 'posts'
+          }))
+
+          const uploadResults = await uploadMultipleToR2(uploadFiles)
+          console.debug('[CreatePost] Upload results', uploadResults)
+          const failedUploads = uploadResults.filter(result => !result.success)
+          if (failedUploads.length > 0) {
+            messageApi.error('Some files failed to upload. Please try again.')
+            return
+          }
+          mediaUrls = uploadResults.map(result => result.url!).filter(Boolean)
         }
-        mediaUrls = uploadResults.map(result => result.url!).filter(Boolean)
+
+        if (nativeFiles.length > 0) {
+          mediaUrls = [
+            ...nativeFiles.map((file: any) => file.r2Url || getNativeFileMeta(file)?.url).filter(Boolean),
+            ...mediaUrls,
+          ]
+        }
+
         const firstFile = fileList[0]
-        mediaType = firstFile.type.startsWith('video/') ? 'video' : 'image'
+        const nativeMeta = getNativeFileMeta(firstFile)
+        const typeSource = firstFile.type || nativeMeta?.type || (firstFile.r2Url ? 'image/jpeg' : '')
+        mediaType = typeSource.startsWith('video/') ? 'video' : 'image'
       }
 
       // Create post

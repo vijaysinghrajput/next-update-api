@@ -168,6 +168,13 @@ export default function WalletPage() {
     }
   }, [fetchData, fetchSettings])
 
+  const getNativeFileMeta = (file: any) => {
+    if (typeof window === 'undefined') return null
+    const store: WeakMap<File, any> | undefined = (window as any).__nativeFileMeta
+    const origin = file?.originFileObj || file
+    return origin && store ? store.get(origin) : null
+  }
+
   const handleBuyPoints = async (values: { amount: number; screenshot: any }) => {
     setBuyPointsLoading(true)
     try {
@@ -176,22 +183,31 @@ export default function WalletPage() {
         return
       }
 
-      const file = values.screenshot?.[0]?.originFileObj as File | undefined
-      console.debug('[BuyPoints] Form values', { values, hasFile: !!file })
+      const screenshotEntry = values.screenshot?.[0]
+      const nativeMeta = screenshotEntry ? getNativeFileMeta(screenshotEntry) : null
+      const nativeUrl = screenshotEntry?.r2Url || nativeMeta?.url
+      const file = screenshotEntry?.originFileObj as File | undefined
+      console.debug('[BuyPoints] Form values', { values, hasFile: !!file, hasNative: !!nativeUrl })
       
-      if (!file) {
+      if (!file && !nativeUrl) {
         messageApi.error('Please upload payment screenshot')
         return
       }
 
-      // Upload screenshot to R2
-      const key = generateFileKey(file.name, 'payments')
-      const result = await uploadToR2(file, key, file.type)
-      console.debug('[BuyPoints] Upload result', result)
+      let screenshotUrl = nativeUrl
 
-      if (!result.success) {
-        messageApi.error('Failed to upload screenshot')
-        return
+      if (!screenshotUrl && file) {
+        // Upload screenshot to R2
+        const key = generateFileKey(file.name, 'payments')
+        const result = await uploadToR2(file, key, file.type)
+        console.debug('[BuyPoints] Upload result', result)
+
+        if (!result.success) {
+          messageApi.error('Failed to upload screenshot')
+          return
+        }
+
+        screenshotUrl = result.url!
       }
 
       // Create payment request
@@ -200,7 +216,7 @@ export default function WalletPage() {
         .insert({
           user_id: user!.id,
           amount: values.amount,
-          screenshot_url: result.url!,
+          screenshot_url: screenshotUrl!,
           status: 'pending'
         })
         .select('*')

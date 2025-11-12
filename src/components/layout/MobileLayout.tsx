@@ -102,10 +102,18 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div
+      className="relative mx-auto w-full max-w-xl min-h-screen flex flex-col bg-transparent"
+      style={{
+        paddingBottom: 'calc(var(--safe-area-bottom, 0px) + 88px)',
+        paddingLeft: 'var(--safe-area-left, 0px)',
+        paddingRight: 'var(--safe-area-right, 0px)',
+      }}
+    >
       {/* Top Header */}
       <motion.header 
-        className="sticky top-0 z-40 bg-white border-b border-gray-200 px-4 py-3"
+        className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-gray-200 px-4 pb-3 shadow-sm"
+        style={{ paddingTop: 'calc(var(--safe-area-top, 0px) + 14px)' }}
         initial={{ y: -60 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.3 }}
@@ -156,7 +164,7 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
       </motion.header>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-x-hidden">
+      <main className="flex-1 overflow-x-hidden px-3 sm:px-4 pt-4 pb-10">
         <AnimatePresence mode="wait">
           <motion.div
             key={pathname}
@@ -172,12 +180,15 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
 
       {/* Bottom Navigation */}
       <motion.nav 
-        className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-2 py-2 z-50"
+        className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-gray-200 px-4 pt-2 z-50 shadow-[0_-8px_24px_rgba(15,23,42,0.12)]"
+        style={{
+          paddingBottom: 'calc(var(--safe-area-bottom, 0px) + 12px)',
+        }}
         initial={{ y: 100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.3, delay: 0.1 }}
       >
-        <div className="flex items-center justify-around">
+        <div className="flex items-center justify-around mx-auto w-full max-w-xl">
           {navigationItems.map((item) => {
             const isActive = pathname === item.key
             const Icon = item.icon
@@ -186,10 +197,10 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
               <motion.button
                 key={item.key}
                 onClick={() => router.push(item.key)}
-                className={`flex flex-col items-center justify-center p-2 rounded-xl min-w-[60px] transition-all duration-200 relative ${
+                className={`flex flex-col items-center justify-center px-4 py-2 rounded-2xl min-w-[64px] transition-all duration-200 relative ${
                   isActive 
-                    ? 'bg-blue-600 text-white' 
-                    : 'text-gray-500 hover:text-gray-700 bg-transparent'
+                    ? 'bg-gradient-to-br from-blue-600 to-indigo-500 text-white shadow-md shadow-blue-200/60 ring-1 ring-blue-500/40' 
+                    : 'text-slate-500 hover:text-slate-700 bg-white/5'
                 }`}
                 whileTap={{ scale: 0.95 }}
                 whileHover={{ scale: 1.05 }}

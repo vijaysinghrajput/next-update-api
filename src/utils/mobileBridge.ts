@@ -17,6 +17,22 @@ declare global {
   }
 }
 
+type NativeFileMeta = {
+  key?: string
+  url?: string
+  type?: string
+  size?: number
+}
+
+const getNativeMetaStore = (): WeakMap<File, NativeFileMeta> | undefined => {
+  if (typeof window === 'undefined') return undefined
+  const globalAny = window as any
+  if (!globalAny.__nativeFileMeta) {
+    globalAny.__nativeFileMeta = new WeakMap<File, NativeFileMeta>()
+  }
+  return globalAny.__nativeFileMeta as WeakMap<File, NativeFileMeta>
+}
+
 // Detect if running in mobile app
 export const isMobileApp = (): boolean => {
   if (typeof window === 'undefined') return false
@@ -57,6 +73,7 @@ export const requestNativeFileUpload = (
   multiple: boolean = false,
   maxFiles: number = 1
 ): Promise<File[]> => {
+  console.log('[MobileBridge] requestNativeFileUpload invoked', { accept, multiple, maxFiles, inApp: isMobileApp() })
   return new Promise((resolve, reject) => {
     if (!isMobileApp()) {
       // Fallback to regular file input
@@ -103,7 +120,7 @@ export const handleNativeFileResponse = (requestId: string, files: File[]): void
     console.warn('[MobileBridge] No resolver found for request:', requestId)
     return
   }
-  
+  console.log('[MobileBridge] Resolving native upload', { requestId, fileCount: files.length, files })
   const { resolve } = resolvers[requestId]
   delete resolvers[requestId]
   resolve(files)
@@ -205,23 +222,53 @@ export const initMobileBridge = (): void => {
         const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data
         
         if (data.type === 'file_selected' && data.requestId) {
+          console.log('[MobileBridge] Native file_selected payload:', data)
           // Convert file data to File objects
           const files = await Promise.all((data.files || []).map(async (fileData: any) => {
             try {
-              // Fetch the file from the URI
-              const response = await fetch(fileData.uri)
-              const blob = await response.blob()
+              let blob: Blob | null = null
+
+              const sourceUri = fileData.url || fileData.uri
+
+              if (sourceUri && sourceUri.startsWith('data:')) {
+                // Data URI - decode directly
+                const base64Data = sourceUri.split(',')[1] || ''
+                const byteCharacters = atob(base64Data)
+                const byteNumbers = new Array(byteCharacters.length)
+                for (let i = 0; i < byteCharacters.length; i++) {
+                  byteNumbers[i] = byteCharacters.charCodeAt(i)
+                }
+                const byteArray = new Uint8Array(byteNumbers)
+                blob = new Blob([byteArray], { type: fileData.type || 'application/octet-stream' })
+              } else if (sourceUri) {
+                const response = await fetch(sourceUri)
+                blob = await response.blob()
+              }
+              
+              if (!blob) {
+                throw new Error('Unable to load selected file data')
+              }
               
               // Create a File object
-              const file = new File([blob], fileData.name || 'file', {
+              const fileName = fileData.name || fileData.key?.split('/').pop() || 'file'
+              const file = new File([blob], fileName, {
                 type: fileData.type || blob.type || 'application/octet-stream',
                 lastModified: fileData.lastModified || Date.now()
               })
               
-              // Store original URI for reference
-              ;(file as any).uri = fileData.uri
-              ;(file as any).size = fileData.size || blob.size
-              
+              // Store metadata for downstream consumers (Ant Upload, etc.)
+              const metaStore = getNativeMetaStore()
+              metaStore?.set(file, {
+                key: fileData.key,
+                url: fileData.url,
+                type: fileData.type || blob.type || 'application/octet-stream',
+                size: fileData.size || blob.size,
+              })
+
+              ;(file as any).uid = fileData.key || `native-${Date.now()}-${Math.random().toString(36).slice(2)}`
+              ;(file as any).originFileObj = file
+              ;(file as any).status = 'done'
+
               return file
             } catch (error) {
               console.error('[MobileBridge] Error fetching file:', error)
@@ -231,14 +278,26 @@ export const initMobileBridge = (): void => {
                 type: fileData.type || 'application/octet-stream',
                 lastModified: fileData.lastModified || Date.now()
               })
-              ;(file as any).uri = fileData.uri
-              ;(file as any).size = fileData.size || 0
-              ;(file as any).error = error
+              const metaStore = getNativeMetaStore()
+              metaStore?.set(file, {
+                key: fileData.key,
+                url: fileData.url,
+                type: fileData.type || 'application/octet-stream',
+                size: fileData.size || 0,
+              })
+              ;(file as any).uid = fileData.key || `native-${Date.now()}-${Math.random().toString(36).slice(2)}`
+              ;(file as any).originFileObj = file
+              ;(file as any).status = 'done'
               return file
             }
           }))
           
+          console.log('[MobileBridge] Converted files ready for resolve', files)
           handleNativeFileResponse(data.requestId, files)
+
+          if (data.uploadErrors?.length) {
+            alert(data.uploadErrors[0])
+          }
         }
       } catch (error) {
         console.error('[MobileBridge] Error handling message:', error)

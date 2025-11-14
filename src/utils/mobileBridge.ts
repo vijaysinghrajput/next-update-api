@@ -289,36 +289,54 @@ export const initMobileBridge = (): void => {
   
   // Enhance file inputs to use native picker
   if (isMobileApp()) {
+    // Prevent default file input behavior and use native picker
     document.addEventListener('click', (e) => {
       const target = e.target as HTMLElement
+      
+      // Check if click is on or inside upload button/area
+      const uploadTrigger = target.closest('.ant-upload, .ant-upload-select, [class*="upload"]')
       const fileInput = target.closest('input[type="file"]') as HTMLInputElement
       
-      if (fileInput && !fileInput.hasAttribute('data-native-handled')) {
+      if (uploadTrigger || fileInput) {
         e.preventDefault()
         e.stopPropagation()
+        e.stopImmediatePropagation()
         
-        fileInput.setAttribute('data-native-handled', 'true')
+        console.log('[MobileBridge] Upload clicked, requesting native picker')
         
-        const accept = fileInput.accept || '*/*'
-        const multiple = fileInput.multiple || false
-        const maxFiles = multiple ? 5 : 1
+        // Get the actual file input element
+        let input = fileInput
+        if (!input && uploadTrigger) {
+          input = uploadTrigger.querySelector('input[type="file"]') as HTMLInputElement
+        }
+        
+        const accept = input?.accept || 'image/*,video/*'
+        const multiple = input?.multiple || true
+        const maxFiles = 5
         
         requestNativeFileUpload(accept, multiple, maxFiles)
           .then((files) => {
-            // Create a FileList-like object
-            const dataTransfer = new DataTransfer()
-            files.forEach(file => dataTransfer.items.add(file))
-            fileInput.files = dataTransfer.files
-            
-            // Trigger change event
-            const event = new Event('change', { bubbles: true })
-            fileInput.dispatchEvent(event)
+            if (files && files.length > 0) {
+              console.log('[MobileBridge] Native files received:', files.length)
+              // Trigger the Upload component's onChange
+              if (input) {
+                const dataTransfer = new DataTransfer()
+                files.forEach(file => dataTransfer.items.add(file))
+                input.files = dataTransfer.files
+                
+                // Trigger change event
+                const event = new Event('change', { bubbles: true })
+                input.dispatchEvent(event)
+              }
+            }
           })
           .catch((error) => {
-            console.error('[MobileBridge] File upload failed:', error)
+            console.error('[MobileBridge] Native file upload failed:', error)
           })
+        
+        return false
       }
-    }, true) // Use capture phase
+    }, true) // Use capture phase to intercept early
     
     // Enhance phone links
     document.addEventListener('click', (e) => {

@@ -7,6 +7,7 @@ import { supabaseClient } from '@/lib/supabase-client'
 import { generateFileKey, uploadToR2, validateFileSize, validateMediaFile, getProxiedImageUrl } from '@/lib/r2-storage'
 import { useRouter } from 'next/navigation'
 import { useApp } from '@/lib/providers'
+import { mobileAwareFileUpload, isMobileApp } from '@/utils/mobileBridge'
 
 type CityOption = { id: string; name: string }
 
@@ -96,6 +97,20 @@ export default function EditProfilePage() {
     return res.url
   }
 
+  const handleMobileUpload = async () => {
+    if (!isMobileApp()) return
+    try {
+      const files = await mobileAwareFileUpload({ accept: 'image/*', multiple: false, maxCount: 1 })
+      if (files.length > 0) {
+        const url = await handleUpload(files[0])
+        return url
+      }
+    } catch (error) {
+      console.error('[ProfileEdit] Mobile upload error:', error)
+      message.error('Mobile upload failed')
+    }
+  }
+
   const onFinish = async (values: any) => {
     try {
       setLoading(true)
@@ -148,20 +163,23 @@ export default function EditProfilePage() {
             <AntAvatar size={64} src={getProxiedImageUrl(avatarUrl) || undefined}>
               {!avatarUrl && (user?.name?.[0] || 'U')}
             </AntAvatar>
-            <Upload
-              accept="image/*"
-              showUploadList={false}
-              customRequest={async ({ file, onSuccess, onError }) => {
-                try {
-                  const url = await handleUpload(file as File)
-                  if (url && onSuccess) onSuccess({ url } as any)
-                } catch (e) {
-                  if (onError) onError(e as any)
-                }
-              }}
-            >
-              <Button icon={<UploadOutlined />}>Change Photo</Button>
-            </Upload>
+            <div onClick={isMobileApp() ? handleMobileUpload : undefined}>
+              <Upload
+                accept="image/*"
+                showUploadList={false}
+                customRequest={async ({ file, onSuccess, onError }) => {
+                  try {
+                    const url = await handleUpload(file as File)
+                    if (url && onSuccess) onSuccess({ url } as any)
+                  } catch (e) {
+                    if (onError) onError(e as any)
+                  }
+                }}
+                disabled={isMobileApp()}
+              >
+                <Button icon={<UploadOutlined />}>Change Photo</Button>
+              </Upload>
+            </div>
           </Space>
 
           <Form layout="vertical" form={form} onFinish={onFinish}>

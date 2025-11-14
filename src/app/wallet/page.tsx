@@ -20,6 +20,7 @@ import { supabaseClient } from '../../lib/supabase-client'
 import type { WalletSettings as WalletSettingsRow } from '../../lib/supabase'
 import { formatNumber, formatRelativeTime, POINTS_CONFIG } from '../../lib/utils'
 import { uploadToR2, generateFileKey } from '../../lib/r2-storage'
+import { mobileAwareFileUpload, isMobileApp } from '../../utils/mobileBridge'
 
 const { Title, Text } = Typography
 
@@ -187,6 +188,27 @@ export default function WalletPage() {
     const store: WeakMap<File, any> | undefined = (window as any).__nativeFileMeta
     const origin = file?.originFileObj || file
     return origin && store ? store.get(origin) : null
+  }
+
+  // Mobile-aware upload handler for payment screenshot
+  const handleMobileScreenshotUpload = async () => {
+    try {
+      const files = await mobileAwareFileUpload({
+        accept: 'image/*',
+        multiple: false,
+        maxCount: 1
+      })
+      
+      if (files.length > 0) {
+        const file = files[0]
+        form.setFieldsValue({
+          screenshot: [file]
+        })
+      }
+    } catch (error) {
+      console.error('Error selecting payment screenshot:', error)
+      messageApi.error('Failed to select image')
+    }
   }
 
   const handleBuyPoints = async (values: { amount: number; screenshot: any }) => {
@@ -795,17 +817,34 @@ export default function WalletPage() {
               valuePropName="fileList"
               getValueFromEvent={(e) => (Array.isArray(e) ? e : e?.fileList)}
             >
-              <Upload
-                listType="picture-card"
-                maxCount={1}
-                beforeUpload={() => false}
-                accept="image/*"
-              >
-                <div>
-                  <UploadOutlined />
-                  <div style={{ marginTop: 8 }}>Upload</div>
+              {isMobileApp() ? (
+                <div onClick={handleMobileScreenshotUpload} style={{ cursor: 'pointer' }}>
+                  <Upload
+                    listType="picture-card"
+                    maxCount={1}
+                    beforeUpload={() => false}
+                    accept="image/*"
+                    disabled
+                  >
+                    <div>
+                      <UploadOutlined />
+                      <div style={{ marginTop: 8 }}>Upload</div>
+                    </div>
+                  </Upload>
                 </div>
-              </Upload>
+              ) : (
+                <Upload
+                  listType="picture-card"
+                  maxCount={1}
+                  beforeUpload={() => false}
+                  accept="image/*"
+                >
+                  <div>
+                    <UploadOutlined />
+                    <div style={{ marginTop: 8 }}>Upload</div>
+                  </div>
+                </Upload>
+              )}
             </Form.Item>
 
             <Form.Item>

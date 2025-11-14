@@ -18,6 +18,7 @@ import {
 import { motion } from 'framer-motion'
 import { useApp } from '../../lib/providers'
 import { useRouter, usePathname } from 'next/navigation'
+import { mobileAwareFileUpload, isMobileApp } from '../../utils/mobileBridge'
 import { socialActions, supabaseClient } from '../../lib/supabase-client'
 import { formatNumber, APP_STORE_LINK } from '../../lib/utils'
 import { uploadToR2, generateFileKey, getProxiedImageUrl } from '../../lib/r2-storage'
@@ -226,6 +227,70 @@ export default function ProfilePage() {
       messageApi.error('Failed to update profile')
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Mobile-aware upload handlers
+  const handleAvatarUpload = async () => {
+    try {
+      const files = await mobileAwareFileUpload({
+        accept: 'image/*',
+        multiple: false,
+        maxCount: 1
+      })
+      
+      if (files.length > 0) {
+        const file = files[0]
+        form.setFieldsValue({
+          avatar: {
+            fileList: [file],
+            file: file
+          }
+        })
+      }
+    } catch (error) {
+      console.error('Error selecting avatar:', error)
+      messageApi.error('Failed to select image')
+    }
+  }
+
+  const handleAadharFrontUpload = async () => {
+    try {
+      const files = await mobileAwareFileUpload({
+        accept: 'image/*',
+        multiple: false,
+        maxCount: 1
+      })
+      
+      if (files.length > 0) {
+        const file = files[0]
+        form.setFieldsValue({
+          aadharFront: [file]
+        })
+      }
+    } catch (error) {
+      console.error('Error selecting Aadhar front:', error)
+      messageApi.error('Failed to select image')
+    }
+  }
+
+  const handleAadharBackUpload = async () => {
+    try {
+      const files = await mobileAwareFileUpload({
+        accept: 'image/*',
+        multiple: false,
+        maxCount: 1
+      })
+      
+      if (files.length > 0) {
+        const file = files[0]
+        form.setFieldsValue({
+          aadharBack: [file]
+        })
+      }
+    } catch (error) {
+      console.error('Error selecting Aadhar back:', error)
+      messageApi.error('Failed to select image')
     }
   }
 
@@ -591,18 +656,36 @@ export default function ProfilePage() {
           }}
         >
           <Form.Item name="avatar" label="Profile Picture">
-            <Upload
-              listType="picture-circle"
-              maxCount={1}
-              beforeUpload={() => false}
-              accept="image/*"
-              showUploadList={{ showPreviewIcon: false }}
-            >
-              <div>
-                <CameraOutlined />
-                <div style={{ marginTop: 8 }}>Upload</div>
+            {isMobileApp() ? (
+              <div onClick={handleAvatarUpload} style={{ cursor: 'pointer' }}>
+                <Upload
+                  listType="picture-circle"
+                  maxCount={1}
+                  beforeUpload={() => false}
+                  accept="image/*"
+                  showUploadList={{ showPreviewIcon: false }}
+                  disabled
+                >
+                  <div>
+                    <CameraOutlined />
+                    <div style={{ marginTop: 8 }}>Upload</div>
+                  </div>
+                </Upload>
               </div>
-            </Upload>
+            ) : (
+              <Upload
+                listType="picture-circle"
+                maxCount={1}
+                beforeUpload={() => false}
+                accept="image/*"
+                showUploadList={{ showPreviewIcon: false }}
+              >
+                <div>
+                  <CameraOutlined />
+                  <div style={{ marginTop: 8 }}>Upload</div>
+                </div>
+              </Upload>
+            )}
           </Form.Item>
 
           <Form.Item
@@ -661,17 +744,34 @@ export default function ProfilePage() {
             valuePropName="fileList"
             getValueFromEvent={(e) => (Array.isArray(e) ? e : e?.fileList)}
           >
-            <Upload
-              listType="picture-card"
-              maxCount={1}
-              beforeUpload={() => false}
-              accept="image/*"
-            >
-              <div>
-                <UploadOutlined />
-                <div style={{ marginTop: 8 }}>Front</div>
+            {isMobileApp() ? (
+              <div onClick={handleAadharFrontUpload} style={{ cursor: 'pointer' }}>
+                <Upload
+                  listType="picture-card"
+                  maxCount={1}
+                  beforeUpload={() => false}
+                  accept="image/*"
+                  disabled
+                >
+                  <div>
+                    <UploadOutlined />
+                    <div style={{ marginTop: 8 }}>Front</div>
+                  </div>
+                </Upload>
               </div>
-            </Upload>
+            ) : (
+              <Upload
+                listType="picture-card"
+                maxCount={1}
+                beforeUpload={() => false}
+                accept="image/*"
+              >
+                <div>
+                  <UploadOutlined />
+                  <div style={{ marginTop: 8 }}>Front</div>
+                </div>
+              </Upload>
+            )}
           </Form.Item>
 
           <Form.Item
@@ -681,17 +781,34 @@ export default function ProfilePage() {
             valuePropName="fileList"
             getValueFromEvent={(e) => (Array.isArray(e) ? e : e?.fileList)}
           >
-            <Upload
-              listType="picture-card"
-              maxCount={1}
-              beforeUpload={() => false}
-              accept="image/*"
-            >
-              <div>
-                <UploadOutlined />
-                <div style={{ marginTop: 8 }}>Back</div>
+            {isMobileApp() ? (
+              <div onClick={handleAadharBackUpload} style={{ cursor: 'pointer' }}>
+                <Upload
+                  listType="picture-card"
+                  maxCount={1}
+                  beforeUpload={() => false}
+                  accept="image/*"
+                  disabled
+                >
+                  <div>
+                    <UploadOutlined />
+                    <div style={{ marginTop: 8 }}>Back</div>
+                  </div>
+                </Upload>
               </div>
-            </Upload>
+            ) : (
+              <Upload
+                listType="picture-card"
+                maxCount={1}
+                beforeUpload={() => false}
+                accept="image/*"
+              >
+                <div>
+                  <UploadOutlined />
+                  <div style={{ marginTop: 8 }}>Back</div>
+                </div>
+              </Upload>
+            )}
           </Form.Item>
 
           <Form.Item>

@@ -5,6 +5,7 @@ import { Modal, Form, Input, Upload, App } from 'antd'
 import type { UploadFile, UploadProps } from 'antd/es/upload/interface'
 import { PlusOutlined } from '@ant-design/icons'
 import { uploadMultipleToR2, getProxiedImageUrl } from '../../lib/r2-storage'
+import { mobileAwareFileUpload, isMobileApp } from '../../utils/mobileBridge'
 
 interface PostEditModalProps {
   open: boolean
@@ -98,6 +99,37 @@ export function PostEditModal({
     const firstWithType = fileList.find((file) => file.mediaType)
     return firstWithType?.mediaType || initialMediaType || 'image'
   }, [fileList, initialMediaType])
+
+  // Mobile-aware upload handler
+  const handleMobileUpload = async () => {
+    try {
+      const files = await mobileAwareFileUpload({
+        accept: 'image/*,video/*',
+        multiple: true,
+        maxFiles: 5
+      })
+      
+      if (files.length > 0) {
+        const newUploadFiles: UploadFile[] = files.map((file, index) => {
+          const rcFile = file as any
+          rcFile.uid = `mobile-${Date.now()}-${index}`
+          
+          return {
+            uid: `mobile-${Date.now()}-${index}`,
+            name: file.name,
+            status: 'done' as const,
+            originFileObj: rcFile,
+            mediaType: file.type.startsWith('video/') ? 'video' : 'image'
+          } as UploadFile
+        })
+        
+        setFileList(prevList => [...prevList, ...newUploadFiles])
+      }
+    } catch (error) {
+      console.error('Error selecting files:', error)
+      messageApi.error('Failed to select files')
+    }
+  }
 
   const handlePreview: UploadProps['onPreview'] = async (file) => {
     if (file.url) {
@@ -348,27 +380,86 @@ export function PostEditModal({
           </Form.Item>
 
           <Form.Item label="Media">
-            <Upload
-              listType="picture-card"
-              fileList={fileList}
-              onChange={handleUploadChange}
-              onPreview={handlePreview}
-              beforeUpload={handleBeforeUpload}
-              onRemove={handleRemove}
-              multiple
-              accept="image/*,video/*"
-              showUploadList={{
-                showPreviewIcon: true,
-                showRemoveIcon: true,
-              }}
-            >
-              {fileList.length >= MAX_MEDIA_ITEMS ? null : (
-                <div>
-                  <PlusOutlined />
-                  <div style={{ marginTop: 8 }}>Upload</div>
-                </div>
-              )}
-            </Upload>
+            {isMobileApp() ? (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+                {fileList.map((file) => (
+                  <div key={file.uid} style={{ position: 'relative' }}>
+                    {file.mediaType === 'video' ? (
+                      <video
+                        src={file.url}
+                        style={{ width: 104, height: 104, objectFit: 'cover', borderRadius: 8 }}
+                        controls
+                      />
+                    ) : (
+                      <img
+                        src={file.url}
+                        alt={file.name}
+                        style={{ width: 104, height: 104, objectFit: 'cover', borderRadius: 8 }}
+                      />
+                    )}
+                    <button
+                      onClick={() => handleRemove(file)}
+                      style={{
+                        position: 'absolute',
+                        top: -8,
+                        right: -8,
+                        background: 'red',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '50%',
+                        width: 20,
+                        height: 20,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                {fileList.length < MAX_MEDIA_ITEMS && (
+                  <div
+                    onClick={handleMobileUpload}
+                    style={{
+                      width: 104,
+                      height: 104,
+                      border: '1px dashed #d9d9d9',
+                      borderRadius: 8,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      background: '#fafafa'
+                    }}
+                  >
+                    <PlusOutlined />
+                    <div style={{ marginTop: 8 }}>Upload</div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Upload
+                listType="picture-card"
+                fileList={fileList}
+                onChange={handleUploadChange}
+                onPreview={handlePreview}
+                beforeUpload={handleBeforeUpload}
+                onRemove={handleRemove}
+                multiple
+                accept="image/*,video/*"
+                showUploadList={{
+                  showPreviewIcon: true,
+                  showRemoveIcon: true,
+                }}
+              >
+                {fileList.length >= MAX_MEDIA_ITEMS ? null : (
+                  <div>
+                    <PlusOutlined />
+                    <div style={{ marginTop: 8 }}>Upload</div>
+                  </div>
+                )}
+              </Upload>
+            )}
             <div className="text-xs text-gray-500">
               You can upload up to {MAX_MEDIA_ITEMS} {currentMediaType === 'video' ? 'videos' : 'images'} (max 10MB each).
             </div>

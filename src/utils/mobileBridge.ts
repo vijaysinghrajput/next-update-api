@@ -26,6 +26,13 @@ type NativeFileMeta = {
   size?: number
 }
 
+export interface MobileUploadConfig {
+  accept?: string
+  multiple?: boolean
+  maxCount?: number
+  maxFiles?: number
+}
+
 const getNativeMetaStore = (): WeakMap<File, NativeFileMeta> | undefined => {
   if (typeof window === 'undefined') return undefined
   const globalAny = window as any
@@ -112,6 +119,48 @@ export const requestNativeFileUpload = (
         reject(new Error('File upload timeout'))
       }
     }, 30000)
+  })
+}
+
+/**
+ * Universal mobile-aware file upload function
+ * Works seamlessly on both web and mobile app
+ */
+export const mobileAwareFileUpload = async (config: MobileUploadConfig = {}): Promise<File[]> => {
+  const {
+    accept = 'image/*,video/*',
+    multiple = true,
+    maxCount,
+    maxFiles = maxCount || 5
+  } = config
+
+  // Use native picker on mobile app
+  if (isMobileApp()) {
+    console.log('[MobileBridge] Using native file picker for mobile app')
+    return requestNativeFileUpload(accept, multiple, maxFiles)
+  }
+
+  // Fallback to web file input
+  console.log('[MobileBridge] Using web file input for browser')
+  return new Promise((resolve, reject) => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = accept
+    input.multiple = multiple
+    
+    input.onchange = (e) => {
+      const files = Array.from((e.target as HTMLInputElement).files || [])
+      const limitedFiles = maxFiles ? files.slice(0, maxFiles) : files
+      resolve(limitedFiles)
+    }
+    
+    input.oncancel = () => resolve([])
+    input.click()
+    
+    // Cleanup timeout
+    setTimeout(() => {
+      if (!input.files) resolve([])
+    }, 60000)
   })
 }
 

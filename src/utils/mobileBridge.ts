@@ -275,15 +275,14 @@ export const initMobileBridge = (): void => {
 
             // Set properties that Ant Design Upload expects
             const uid = fileData.key || `native-${Date.now()}-${Math.random().toString(36).slice(2)}`
-            ;(file as any).uid = uid
-            ;(file as any).originFileObj = file
-            ;(file as any).status = 'done'
-            ;(file as any).url = cleanUrl
-            ;(file as any).thumbUrl = cleanUrl
-            ;(file as any).r2Url = cleanUrl
-            ;(file as any).name = fileName
-            ;(file as any).size = fileData.size || 0
-            ;(file as any).type = fileData.type || 'application/octet-stream'
+            
+            // Use Object.defineProperty for read-only File properties
+            Object.defineProperty(file, 'uid', { value: uid, writable: true, configurable: true })
+            Object.defineProperty(file, 'originFileObj', { value: file, writable: true, configurable: true })
+            Object.defineProperty(file, 'status', { value: 'done', writable: true, configurable: true })
+            Object.defineProperty(file, 'url', { value: cleanUrl, writable: true, configurable: true })
+            Object.defineProperty(file, 'thumbUrl', { value: cleanUrl, writable: true, configurable: true })
+            Object.defineProperty(file, 'r2Url', { value: cleanUrl, writable: true, configurable: true })
 
             console.log(`[MobileBridge] Created file object ${index + 1}:`, { 
               fileName, 

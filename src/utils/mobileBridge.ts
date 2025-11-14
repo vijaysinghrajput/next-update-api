@@ -231,9 +231,20 @@ export const initMobileBridge = (): void => {
         const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data
         
         if (data.type === 'file_selected' && data.requestId) {
-          console.log('[MobileBridge] Native file_selected payload:', data)
+          console.log('[MobileBridge] ===== FILE_SELECTED EVENT =====')
+          console.log('[MobileBridge] Native file_selected payload:', JSON.stringify(data, null, 2))
+          console.log('[MobileBridge] Number of files:', data.files?.length || 0)
+          
           // Convert file data to File objects
-          const files = (data.files || []).map((fileData: any) => {
+          const files = (data.files || []).map((fileData: any, index: number) => {
+            console.log(`[MobileBridge] Processing file ${index + 1}:`, {
+              name: fileData.name,
+              url: fileData.url,
+              type: fileData.type,
+              size: fileData.size,
+              key: fileData.key
+            })
+            
             const normalizeUri = (input?: string): string | undefined => {
               if (!input || typeof input !== 'string') return input
               const trimmed = input.trim()
@@ -242,6 +253,8 @@ export const initMobileBridge = (): void => {
 
             const cleanUrl = normalizeUri(fileData.url)
             const fileName = fileData.name || fileData.key?.split('/').pop() || 'file'
+            
+            console.log(`[MobileBridge] Clean URL for file ${index + 1}:`, cleanUrl)
             
             // Create a minimal File object - no need to fetch since file is already uploaded to R2
             const blob = new Blob([], { type: fileData.type || 'application/octet-stream' })
@@ -252,15 +265,18 @@ export const initMobileBridge = (): void => {
             
             // Store metadata for downstream consumers (Ant Upload, etc.)
             const metaStore = getNativeMetaStore()
-            metaStore?.set(file, {
+            const metadata = {
               key: fileData.key,
               url: cleanUrl,
               type: fileData.type || 'application/octet-stream',
               size: fileData.size || 0,
-            })
+            }
+            metaStore?.set(file, metadata)
+            console.log(`[MobileBridge] Stored metadata for file ${index + 1}:`, metadata)
 
             // Set properties that Ant Design Upload expects
-            ;(file as any).uid = fileData.key || `native-${Date.now()}-${Math.random().toString(36).slice(2)}`
+            const uid = fileData.key || `native-${Date.now()}-${Math.random().toString(36).slice(2)}`
+            ;(file as any).uid = uid
             ;(file as any).originFileObj = file
             ;(file as any).status = 'done'
             ;(file as any).url = cleanUrl
@@ -270,19 +286,32 @@ export const initMobileBridge = (): void => {
             ;(file as any).size = fileData.size || 0
             ;(file as any).type = fileData.type || 'application/octet-stream'
 
-            console.log('[MobileBridge] Created file object:', { fileName, url: cleanUrl, uid: (file as any).uid })
+            console.log(`[MobileBridge] Created file object ${index + 1}:`, { 
+              fileName, 
+              url: cleanUrl, 
+              uid,
+              status: (file as any).status,
+              r2Url: (file as any).r2Url
+            })
             return file
           })
           
-          console.log('[MobileBridge] Converted files ready for resolve', files)
+          console.log('[MobileBridge] Total files created:', files.length)
+          console.log('[MobileBridge] Calling handleNativeFileResponse with requestId:', data.requestId)
+          console.log('[MobileBridge] Total files created:', files.length)
+          console.log('[MobileBridge] Calling handleNativeFileResponse with requestId:', data.requestId)
           handleNativeFileResponse(data.requestId, files)
+          console.log('[MobileBridge] handleNativeFileResponse completed')
 
           if (data.uploadErrors?.length) {
+            console.error('[MobileBridge] Upload errors:', data.uploadErrors)
             alert(data.uploadErrors[0])
           }
         }
       } catch (error) {
+        console.error('[MobileBridge] ===== ERROR IN MESSAGE HANDLER =====')
         console.error('[MobileBridge] Error handling message:', error)
+        console.error('[MobileBridge] Error stack:', (error as Error).stack)
       }
     })()
   })

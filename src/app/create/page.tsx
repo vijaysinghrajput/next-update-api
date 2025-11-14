@@ -69,64 +69,103 @@ export default function CreatePostPage() {
   }
 
   const handleUploadChange = ({ fileList }: any) => {
+    console.log('[CreatePost] ===== UPLOAD CHANGE =====')
+    console.log('[CreatePost] Received fileList:', fileList)
+    console.log('[CreatePost] Number of files:', fileList.length)
+    
     const clean = (s?: string) => typeof s === 'string' ? s.trim().replace(/^[`'\"]+|[`'\"]+$/g, '') : s
     // Validate files
-    const validFiles = fileList.filter((file: any) => {
+    const validFiles = fileList.filter((file: any, index: number) => {
+      console.log(`[CreatePost] Validating file ${index + 1}:`, {
+        name: file.name,
+        status: file.status,
+        r2Url: file.r2Url,
+        url: file.url,
+        uid: file.uid,
+        type: file.type
+      })
+      
       const nativeMeta = getNativeFileMeta(file)
+      console.log(`[CreatePost] Native metadata for file ${index + 1}:`, nativeMeta)
+      
       if (nativeMeta?.url) {
         const u = clean(nativeMeta.url)
+        console.log(`[CreatePost] File ${index + 1} has native URL:`, u)
         file.r2Url = u
         file.url = u
         file.thumbUrl = u
         file.status = file.status || 'done'
         file.type = file.type || nativeMeta.type || 'image/jpeg'
         file.size = file.size || nativeMeta.size
+        console.log(`[CreatePost] File ${index + 1} updated with native URL`)
         return true
       }
       if (file.r2Url) {
         const u = clean(file.r2Url)
+        console.log(`[CreatePost] File ${index + 1} already has r2Url:`, u)
         file.url = u
         file.thumbUrl = u
         file.status = file.status || 'done'
         return true
       }
       if (file.originFileObj) {
+        console.log(`[CreatePost] File ${index + 1} has originFileObj, validating...`)
         const validation = validateMediaFile(file.name, Buffer.from([]))
         const sizeValidation = validateFileSize(Buffer.from([]), 10) // 10MB limit
         
         if (!validation.isValid) {
+          console.error(`[CreatePost] File ${index + 1} validation failed:`, validation.error)
           messageApi.error(`${file.name}: ${validation.error}`)
           return false
         }
         
+        console.log(`[CreatePost] File ${index + 1} validation passed`)
         return true
       }
+      console.log(`[CreatePost] File ${index + 1} passed through (unknown type)`)
       return true
     })
 
-    setFileList(validFiles.slice(0, 5)) // Max 5 files
+    console.log('[CreatePost] Valid files after filtering:', validFiles.length)
+    const finalFiles = validFiles.slice(0, 5)
+    console.log('[CreatePost] Final files to set (max 5):', finalFiles.length)
+    setFileList(finalFiles) // Max 5 files
+    console.log('[CreatePost] FileList state updated')
   }
 
   const handleCustomRequest = async ({ file, onSuccess, onError }: any) => {
     try {
-      console.log('[CreatePost] customRequest triggered', { file, isMobile: isMobileApp() })
+      console.log('[CreatePost] ===== CUSTOM REQUEST =====')
+      console.log('[CreatePost] customRequest triggered for file:', {
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        uid: file.uid
+      })
+      console.log('[CreatePost] Is mobile app:', isMobileApp())
       
       // For mobile app, trigger native file upload
       if (isMobileApp()) {
         // Native file upload is handled through the click event on Upload button
         // The file received here is already processed from native
         const nativeMeta = getNativeFileMeta(file)
+        console.log('[CreatePost] Native metadata:', nativeMeta)
+        
         if (nativeMeta?.url) {
-          console.log('[CreatePost] Native file with R2 URL', nativeMeta)
+          console.log('[CreatePost] Native file with R2 URL:', nativeMeta.url)
           onSuccess?.({ url: nativeMeta.url }, file)
+          console.log('[CreatePost] onSuccess called with R2 URL')
           return
         }
       }
       
       // For web or files without native URL, just mark as ready for upload
+      console.log('[CreatePost] Marking file as ready for upload')
       onSuccess?.('ok', file)
     } catch (error) {
+      console.error('[CreatePost] ===== CUSTOM REQUEST ERROR =====')
       console.error('[CreatePost] Custom request error:', error)
+      console.error('[CreatePost] Error stack:', (error as Error).stack)
       onError?.(error)
     }
   }

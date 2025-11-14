@@ -233,85 +233,46 @@ export const initMobileBridge = (): void => {
         if (data.type === 'file_selected' && data.requestId) {
           console.log('[MobileBridge] Native file_selected payload:', data)
           // Convert file data to File objects
-          const files = await Promise.all((data.files || []).map(async (fileData: any) => {
-            try {
-              let blob: Blob | null = null
-
-              const normalizeUri = (input?: string): string | undefined => {
-                if (!input || typeof input !== 'string') return input
-                const trimmed = input.trim()
-                return trimmed.replace(/^[`'"]+|[`'\"]+$/g, '')
-              }
-
-              const sourceUri = normalizeUri(fileData.url || fileData.uri)
-
-              if (sourceUri && sourceUri.startsWith('data:')) {
-                // Data URI - decode directly
-                const base64Data = sourceUri.split(',')[1] || ''
-                const byteCharacters = atob(base64Data)
-                const byteNumbers = new Array(byteCharacters.length)
-                for (let i = 0; i < byteCharacters.length; i++) {
-                  byteNumbers[i] = byteCharacters.charCodeAt(i)
-                }
-                const byteArray = new Uint8Array(byteNumbers)
-                blob = new Blob([byteArray], { type: fileData.type || 'application/octet-stream' })
-              } else if (sourceUri) {
-                const response = await fetch(sourceUri)
-                blob = await response.blob()
-              }
-              
-              if (!blob) {
-                throw new Error('Unable to load selected file data')
-              }
-              
-              // Create a File object
-              const fileName = fileData.name || fileData.key?.split('/').pop() || 'file'
-              const file = new File([blob], fileName, {
-                type: fileData.type || blob.type || 'application/octet-stream',
-                lastModified: fileData.lastModified || Date.now()
-              })
-              
-              // Store metadata for downstream consumers (Ant Upload, etc.)
-              const metaStore = getNativeMetaStore()
-              metaStore?.set(file, {
-                key: fileData.key,
-                url: normalizeUri(fileData.url),
-                type: fileData.type || blob.type || 'application/octet-stream',
-                size: fileData.size || blob.size,
-              })
-
-              ;(file as any).uid = fileData.key || `native-${Date.now()}-${Math.random().toString(36).slice(2)}`
-              ;(file as any).originFileObj = file
-              ;(file as any).status = 'done'
-              ;(file as any).url = normalizeUri(fileData.url)
-              ;(file as any).thumbUrl = normalizeUri(fileData.url)
-              ;(file as any).r2Url = normalizeUri(fileData.url)
-
-              return file
-            } catch (error) {
-              console.error('[MobileBridge] Error fetching file:', error)
-              // Return a placeholder file if fetch fails
-              const blob = new Blob([], { type: fileData.type || 'application/octet-stream' })
-              const file = new File([blob], fileData.name || 'file', {
-                type: fileData.type || 'application/octet-stream',
-                lastModified: fileData.lastModified || Date.now()
-              })
-              const metaStore = getNativeMetaStore()
-              metaStore?.set(file, {
-                key: fileData.key,
-                url: (fileData.url || '').trim().replace(/^[`'\"]+|[`'\"]+$/g, ''),
-                type: fileData.type || 'application/octet-stream',
-                size: fileData.size || 0,
-              })
-              ;(file as any).uid = fileData.key || `native-${Date.now()}-${Math.random().toString(36).slice(2)}`
-              ;(file as any).originFileObj = file
-              ;(file as any).status = 'done'
-              ;(file as any).url = (fileData.url || '').trim().replace(/^[`'\"]+|[`'\"]+$/g, '')
-              ;(file as any).thumbUrl = (fileData.url || '').trim().replace(/^[`'\"]+|[`'\"]+$/g, '')
-              ;(file as any).r2Url = (fileData.url || '').trim().replace(/^[`'\"]+|[`'\"]+$/g, '')
-              return file
+          const files = (data.files || []).map((fileData: any) => {
+            const normalizeUri = (input?: string): string | undefined => {
+              if (!input || typeof input !== 'string') return input
+              const trimmed = input.trim()
+              return trimmed.replace(/^[`'"]+|[`'\"]+$/g, '')
             }
-          }))
+
+            const cleanUrl = normalizeUri(fileData.url)
+            const fileName = fileData.name || fileData.key?.split('/').pop() || 'file'
+            
+            // Create a minimal File object - no need to fetch since file is already uploaded to R2
+            const blob = new Blob([], { type: fileData.type || 'application/octet-stream' })
+            const file = new File([blob], fileName, {
+              type: fileData.type || 'application/octet-stream',
+              lastModified: Date.now()
+            })
+            
+            // Store metadata for downstream consumers (Ant Upload, etc.)
+            const metaStore = getNativeMetaStore()
+            metaStore?.set(file, {
+              key: fileData.key,
+              url: cleanUrl,
+              type: fileData.type || 'application/octet-stream',
+              size: fileData.size || 0,
+            })
+
+            // Set properties that Ant Design Upload expects
+            ;(file as any).uid = fileData.key || `native-${Date.now()}-${Math.random().toString(36).slice(2)}`
+            ;(file as any).originFileObj = file
+            ;(file as any).status = 'done'
+            ;(file as any).url = cleanUrl
+            ;(file as any).thumbUrl = cleanUrl
+            ;(file as any).r2Url = cleanUrl
+            ;(file as any).name = fileName
+            ;(file as any).size = fileData.size || 0
+            ;(file as any).type = fileData.type || 'application/octet-stream'
+
+            console.log('[MobileBridge] Created file object:', { fileName, url: cleanUrl, uid: (file as any).uid })
+            return file
+          })
           
           console.log('[MobileBridge] Converted files ready for resolve', files)
           handleNativeFileResponse(data.requestId, files)

@@ -12,6 +12,7 @@ import { uploadMultipleToR2, validateMediaFile, validateFileSize } from '../../l
 import { extractUrls, LinkPreviewData } from '../../utils/linkPreview'
 import { getBasePreviews, enhancePreviews } from '../../utils/linkPreviewCache'
 import LinkPreview from '../../components/shared/LinkPreview'
+import { isMobileApp, requestNativeFileUpload } from '../../utils/mobileBridge'
 
 const { TextArea } = Input
 const { Option } = Select
@@ -104,6 +105,30 @@ export default function CreatePostPage() {
     })
 
     setFileList(validFiles.slice(0, 5)) // Max 5 files
+  }
+
+  const handleCustomRequest = async ({ file, onSuccess, onError }: any) => {
+    try {
+      console.log('[CreatePost] customRequest triggered', { file, isMobile: isMobileApp() })
+      
+      // For mobile app, trigger native file upload
+      if (isMobileApp()) {
+        // Native file upload is handled through the click event on Upload button
+        // The file received here is already processed from native
+        const nativeMeta = getNativeFileMeta(file)
+        if (nativeMeta?.url) {
+          console.log('[CreatePost] Native file with R2 URL', nativeMeta)
+          onSuccess?.({ url: nativeMeta.url }, file)
+          return
+        }
+      }
+      
+      // For web or files without native URL, just mark as ready for upload
+      onSuccess?.('ok', file)
+    } catch (error) {
+      console.error('[CreatePost] Custom request error:', error)
+      onError?.(error)
+    }
   }
 
   const handlePreview = async (file: any) => {
@@ -350,7 +375,7 @@ export default function CreatePostPage() {
                   fileList={fileList}
                   onChange={handleUploadChange}
                   onPreview={handlePreview}
-                  beforeUpload={() => false} // Prevent auto upload
+                  customRequest={handleCustomRequest}
                   multiple
                   accept="image/*,video/*"
                   className="create-post-upload"

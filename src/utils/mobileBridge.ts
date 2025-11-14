@@ -224,11 +224,10 @@ export const initMobileBridge = (): void => {
   }
   ;(window as any).__mobileBridgeInitialized = true
   
-  // Listen for messages from native app
-  window.addEventListener('message', (event) => {
-    (async () => {
-      try {
-        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data
+  // Message handler function
+  const handleNativeMessage = async (event: MessageEvent) => {
+    try {
+      const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data
         
         if (data.type === 'file_selected' && data.requestId) {
           console.log('[MobileBridge] ===== FILE_SELECTED EVENT =====')
@@ -313,8 +312,14 @@ export const initMobileBridge = (): void => {
         console.error('[MobileBridge] Error handling message:', error)
         console.error('[MobileBridge] Error stack:', (error as Error).stack)
       }
-    })()
-  })
+  }
+  
+  // Listen for messages from React Native WebView (document and window)
+  // React Native WebView posts messages that trigger 'message' event on document
+  document.addEventListener('message', handleNativeMessage as any)
+  window.addEventListener('message', handleNativeMessage)
+  
+  console.log('[MobileBridge] Message listeners registered on both document and window')
   
   // Enhance file inputs to use native picker
   if (isMobileApp()) {

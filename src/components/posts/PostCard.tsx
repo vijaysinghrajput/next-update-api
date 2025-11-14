@@ -9,10 +9,12 @@ import {
   ShareAltOutlined, 
   CheckCircleOutlined,
   CrownOutlined,
-  SendOutlined
+  SendOutlined,
+  UserAddOutlined,
+  UserDeleteOutlined
 } from '@ant-design/icons'
 import { motion, AnimatePresence } from 'framer-motion'
-import { formatRelativeTime, formatNumber } from '../../lib/utils'
+import { formatRelativeTime, formatNumber, APP_STORE_LINK } from '../../lib/utils'
 import { socialActions, supabaseClient } from '../../lib/supabase-client'
 import { extractUrls, LinkPreviewData } from '../../utils/linkPreview'
 import { getBasePreviews, enhancePreviews } from '../../utils/linkPreviewCache'
@@ -59,6 +61,7 @@ export interface PostWithAuthor {
   shares_count: number
   created_at: string
   is_liked?: boolean
+  is_following?: boolean
   profiles: PostAuthorProfile
 }
 
@@ -74,6 +77,8 @@ export default function PostCard({ post, currentUserId, onUpdate, onDelete }: Po
   const [likesCount, setLikesCount] = useState(post.likes_count)
   const [commentsCount, setCommentsCount] = useState(post.comments_count)
   const [sharesCount, setSharesCount] = useState(post.shares_count)
+  const [isFollowing, setIsFollowing] = useState(post.is_following || false)
+  const [followLoading, setFollowLoading] = useState(false)
   const [showComments, setShowComments] = useState(false)
   const [comments, setComments] = useState<Comment[]>([])
   const [comment, setComment] = useState('')
@@ -337,13 +342,13 @@ export default function PostCard({ post, currentUserId, onUpdate, onDelete }: Po
     try {
       if (navigator.share) {
         await navigator.share({
-          title: `${post.profiles.name}'s post`,
-          text: post.caption || 'Check out this post!',
-          url: window.location.href,
+          title: `${post.profiles.name}'s post on Next Update`,
+          text: `${post.caption || 'Check out this post!'}\n\nDownload Next Update app: ${APP_STORE_LINK}`,
+          url: APP_STORE_LINK,
         })
         channel = 'native_share'
       } else {
-        await navigator.clipboard.writeText(window.location.href)
+        await navigator.clipboard.writeText(`${post.caption || 'Check out this post!'}\n\nDownload Next Update app: ${APP_STORE_LINK}`)
         messageApi.success('Link copied to clipboard!')
         channel = 'clipboard'
       }
@@ -376,6 +381,32 @@ export default function PostCard({ post, currentUserId, onUpdate, onDelete }: Po
     }
   }
 
+  const handleFollowToggle = async () => {
+    if (post.user_id === currentUserId) return // Can't follow yourself
+    
+    setFollowLoading(true)
+    try {
+      if (isFollowing) {
+        // Unfollow
+        const { error } = await socialActions.unfollowUser(currentUserId, post.user_id)
+        if (error) throw error
+        setIsFollowing(false)
+        messageApi.success('Unfollowed successfully')
+      } else {
+        // Follow
+        const { error } = await socialActions.followUser(currentUserId, post.user_id)
+        if (error) throw error
+        setIsFollowing(true)
+        messageApi.success('Following successfully')
+      }
+    } catch (error: any) {
+      console.error('Follow toggle failed', error)
+      messageApi.error('Failed to update follow status')
+    } finally {
+      setFollowLoading(false)
+    }
+  }
+
   return (
     <>
       <motion.div
@@ -386,6 +417,10 @@ export default function PostCard({ post, currentUserId, onUpdate, onDelete }: Po
         <PostHeader
           post={post}
           isOwner={isOwner}
+          currentUserId={currentUserId}
+          isFollowing={isFollowing}
+          followLoading={followLoading}
+          onFollowToggle={handleFollowToggle}
           onEdit={handleOpenEditModal}
           onDelete={handleDeletePost}
         />

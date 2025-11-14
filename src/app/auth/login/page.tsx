@@ -48,7 +48,11 @@ export default function LoginPage() {
         if (error.message.includes('Invalid login credentials')) {
           setError('Invalid email or password. Please check your credentials.')
         } else if (error.message.includes('Email not confirmed')) {
-          setError('Please check your email and confirm your account.')
+          setError('Please verify your email first.')
+          // Redirect to verification page after 2 seconds
+          setTimeout(() => {
+            router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`)
+          }, 2000)
         } else {
           setError(error.message)
         }
@@ -56,6 +60,15 @@ export default function LoginPage() {
       }
 
       if (data.user) {
+        // Check if email is verified
+        if (!data.user.email_confirmed_at) {
+          setError('Please verify your email before logging in.')
+          setTimeout(() => {
+            router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`)
+          }, 2000)
+          return
+        }
+
         // Ensure user has a profile (create if missing)
         const { data: profile } = await supabaseClient
           .from('profiles')
@@ -99,14 +112,14 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-white flex flex-col">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
+        className="flex-1 flex flex-col px-6 py-8 safe-area-inset"
       >
-        <div className="bg-white rounded-2xl shadow-xl p-8">
+        <div className="flex-1 flex flex-col">
           {/* Header */}
           <div className="text-center mb-8">
             <motion.div
@@ -230,8 +243,8 @@ export default function LoginPage() {
         </div>
 
         {/* Footer */}
-        <div className="text-center mt-6">
-          <Text type="secondary" className="text-sm">
+        <div className="text-center mt-auto pt-6 pb-safe">
+          <Text type="secondary" className="text-xs">
             By signing in, you agree to our{' '}
             <Link href="/terms" className="text-primary hover:underline">Terms of Service</Link>
             {' '}and{' '}

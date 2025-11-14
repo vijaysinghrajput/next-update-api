@@ -6,6 +6,7 @@ import { ConfigProvider, theme, App } from 'antd'
 import { usePathname } from 'next/navigation'
 import { supabaseClient } from './supabase-client'
 import { Profile } from './supabase'
+import { useAutoLikeSystem } from '@/hooks/useAutoLikes'
 import '../utils/mobileBridge' // Initialize mobile bridge
 
 // Query Client with optimized caching strategy to prevent excessive refetching
@@ -96,6 +97,9 @@ export function Providers({ children }: ProvidersProps) {
   const [userCity, setUserCity] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isCityReady, setIsCityReady] = useState(false)
+
+  // Initialize auto-like system
+  useAutoLikeSystem()
 
   const refreshUser = async () => {
     try {

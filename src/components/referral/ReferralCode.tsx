@@ -6,6 +6,7 @@ import { GiftOutlined, CopyOutlined, ShareAltOutlined, UserAddOutlined } from '@
 import { motion } from 'framer-motion'
 import { socialActions, supabaseClient } from '../../lib/supabase-client'
 import { useApp } from '../../lib/providers'
+import { APP_STORE_LINK } from '../../lib/utils'
 
 const { Title, Text, Paragraph } = Typography
 
@@ -77,19 +78,19 @@ export default function ReferralCode() {
   }
 
   const shareReferralLink = async () => {
-    const shareUrl = `${window.location.origin}/auth/register?ref=${referralData?.referralCode}`
+    const referralCode = referralData?.referralCode
     let channel: string | null = null
     
     try {
       if (navigator.share) {
         await navigator.share({
           title: 'Join Next Update',
-          text: 'Join me on Next Update and we both get 100 bonus points!',
-          url: shareUrl
+          text: `Join me on Next Update and we both get 100 bonus points! Use referral code: ${referralCode}\n\nDownload the app: ${APP_STORE_LINK}`,
+          url: APP_STORE_LINK
         })
         channel = 'native_share'
       } else {
-        await navigator.clipboard.writeText(shareUrl)
+        await navigator.clipboard.writeText(`Join me on Next Update! Use referral code: ${referralCode}\n\nDownload the app: ${APP_STORE_LINK}`)
         message.success('Referral link copied to clipboard!')
         channel = 'clipboard'
       }

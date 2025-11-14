@@ -98,6 +98,9 @@ export default function ExplorePage() {
       if (!postsData || postsData.length === 0) return []
 
       const postIds = postsData.map(p => p.id)
+      const userIds = postsData.map(p => p.user_id)
+      
+      // Get likes
       const { data: likesData } = await supabaseClient
         .from('post_likes')
         .select('post_id')
@@ -105,10 +108,20 @@ export default function ExplorePage() {
         .in('post_id', postIds)
 
       const likedPostIds = new Set(likesData?.map(l => l.post_id) || [])
+      
+      // Get follow status
+      const { data: followsData } = await supabaseClient
+        .from('follows')
+        .select('following_id')
+        .eq('follower_id', user.id)
+        .in('following_id', userIds)
+      
+      const followingUserIds = new Set(followsData?.map(f => f.following_id) || [])
 
       return postsData.map(post => ({
         ...post,
-        is_liked: likedPostIds.has(post.id)
+        is_liked: likedPostIds.has(post.id),
+        is_following: followingUserIds.has(post.user_id)
       }))
     },
     enabled: !!user && !!selectedCity && !isUserLoading,

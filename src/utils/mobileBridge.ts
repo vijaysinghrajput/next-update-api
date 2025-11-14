@@ -3,6 +3,8 @@
  * This file enables native features when the website runs in the mobile app
  */
 
+import { APP_STORE_LINK } from '@/lib/utils'
+
 declare global {
   interface Window {
     ReactNativeWebView?: {
@@ -168,14 +170,21 @@ export const shareContent = (data: {
   url?: string
   image?: string
 }): void => {
+  // Add app store link to share content
+  const shareData = {
+    title: data.title,
+    text: data.text ? `${data.text}\n\nDownload the app: ${APP_STORE_LINK}` : `Download the app: ${APP_STORE_LINK}`,
+    url: data.url || APP_STORE_LINK,
+  }
+  
   if (isMobileApp()) {
-    sendToNativeApp('share', data)
+    sendToNativeApp('share', shareData)
   } else if (navigator.share) {
     // Use native Web Share API if available
-    navigator.share(data).catch(err => console.log('Share failed:', err))
+    navigator.share(shareData).catch(err => console.log('Share failed:', err))
   } else {
     // Fallback: copy to clipboard
-    const text = [data.title, data.text, data.url].filter(Boolean).join('\n')
+    const text = [shareData.title, shareData.text, shareData.url].filter(Boolean).join('\n')
     navigator.clipboard.writeText(text).then(() => {
       alert('Content copied to clipboard!')
     })

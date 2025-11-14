@@ -23,6 +23,7 @@ interface Post {
     has_blue_tick: boolean
   }
   is_liked?: boolean
+  is_following?: boolean
 }
 
 export function useInfinitePosts(cityId: string | null, userId: string | null) {
@@ -77,9 +78,12 @@ export function useInfinitePosts(cityId: string | null, userId: string | null) {
 
         debugLogger.querySuccess(queryKey, postsData?.length || 0, pageParam)
 
-        // Check which posts are liked by current user
+        // Check which posts are liked by current user and follow status
         if (postsData && postsData.length > 0) {
           const postIds = postsData.map(p => p.id)
+          const userIds = postsData.map(p => p.user_id)
+          
+          // Get likes
           const { data: likesData } = await supabaseClient
             .from('post_likes')
             .select('post_id')
@@ -88,8 +92,18 @@ export function useInfinitePosts(cityId: string | null, userId: string | null) {
 
           const likedPostIds = new Set(likesData?.map(l => l.post_id) || [])
           
+          // Get follow status
+          const { data: followsData } = await supabaseClient
+            .from('follows')
+            .select('following_id')
+            .eq('follower_id', userId)
+            .in('following_id', userIds)
+          
+          const followingUserIds = new Set(followsData?.map(f => f.following_id) || [])
+          
           postsData.forEach(post => {
             post.is_liked = likedPostIds.has(post.id)
+            post.is_following = followingUserIds.has(post.user_id)
           })
         }
 
@@ -153,6 +167,9 @@ export function useInfiniteTrendingPosts(cityId: string | null, userId: string |
 
       if (postsData && postsData.length > 0) {
         const postIds = postsData.map(p => p.id)
+        const userIds = postsData.map(p => p.user_id)
+        
+        // Get likes
         const { data: likesData } = await supabaseClient
           .from('post_likes')
           .select('post_id')
@@ -160,8 +177,19 @@ export function useInfiniteTrendingPosts(cityId: string | null, userId: string |
           .in('post_id', postIds)
 
         const likedPostIds = new Set(likesData?.map(l => l.post_id) || [])
+        
+        // Get follow status
+        const { data: followsData } = await supabaseClient
+          .from('follows')
+          .select('following_id')
+          .eq('follower_id', userId)
+          .in('following_id', userIds)
+        
+        const followingUserIds = new Set(followsData?.map(f => f.following_id) || [])
+        
         postsData.forEach(post => {
           post.is_liked = likedPostIds.has(post.id)
+          post.is_following = followingUserIds.has(post.user_id)
         })
       }
 

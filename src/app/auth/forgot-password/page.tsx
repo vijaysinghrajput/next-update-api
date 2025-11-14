@@ -43,14 +43,14 @@ export default function ForgotPasswordPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="w-full max-w-md"
+          className="w-full px-6 py-8"
         >
-          <div className="bg-white rounded-2xl shadow-xl p-8">
+          <div className="">
             <Alert
               message="Password Reset Email Sent"
               description="Please check your email for a password reset link. If you don't see it, check your spam folder."
@@ -72,14 +72,14 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-white flex flex-col">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
+        className="flex-1 flex flex-col px-6 py-8"
       >
-        <div className="bg-white rounded-2xl shadow-xl p-8">
+        <div className="flex-1 flex flex-col">
           {/* Header */}
           <div className="text-center mb-8">
             <motion.div

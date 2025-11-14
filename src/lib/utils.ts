@@ -7,6 +7,11 @@ import relativeTime from 'dayjs/plugin/relativeTime'
 dayjs.extend(relativeTime)
 
 /**
+ * App Store Link - Used in all share functionality
+ */
+export const APP_STORE_LINK = 'https://play.google.com/store/apps/details?id=com.skyably.nextupdate'
+
+/**
  * Merge tailwind classes with clsx
  */
 export function cn(...inputs: ClassValue[]) {

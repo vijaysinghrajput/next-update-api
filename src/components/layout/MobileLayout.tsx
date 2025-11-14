@@ -69,8 +69,8 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
     fetchCities()
   }, [])
 
-  // Don't show layout for auth pages or admin pages
-  if (pathname.startsWith('/auth') || pathname.startsWith('/admin')) {
+  // Don't show layout for auth pages, admin pages, terms, or privacy pages
+  if (pathname.startsWith('/auth') || pathname.startsWith('/admin') || pathname.startsWith('/terms') || pathname.startsWith('/privacy')) {
     return <>{children}</>
   }
 

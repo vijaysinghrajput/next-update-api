@@ -100,12 +100,12 @@ export default function RegisterPage() {
     setError(null)
 
     try {
-      // Create user with instant confirmation (no email verification)
+      // Create user with email verification enabled
       const { data, error } = await supabaseClient.auth.signUp({
         email: values.email,
         password: values.password,
         options: {
-          emailRedirectTo: undefined, // Skip email verification completely
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
           data: {
             name: values.name,
             phone: values.phone,
@@ -121,71 +121,46 @@ export default function RegisterPage() {
       }
 
       if (data.user) {
-        // Create user profile dynamically
-        const { data: profileResult, error: profileError } = await supabaseClient
-          .rpc('create_user_profile', {
-            user_id: data.user.id,
-            user_email: values.email,
-            user_name: values.name,
-            user_phone: values.phone || null,
-            user_city_id: values.cityId,
-            referral_code_used: null // Handle referral separately
-          })
-
-        if (profileError) {
-          console.error('Profile creation error:', profileError)
-        }
+        // Note: Profile is automatically created by instant_user_setup database trigger
+        
+        // Wait a moment for trigger to complete
+        await new Promise(resolve => setTimeout(resolve, 500))
 
         // Handle referral bonus if code was provided and valid
         if (values.referralCode && referralValidation.isValid) {
-          const { data: referralResult, error: referralError } = await supabaseClient
-            .rpc('handle_referral_signup', {
-              new_user_id: data.user.id,
-              referral_code_used: values.referralCode
+          try {
+            const { data: referralResult, error: referralError } = await supabaseClient
+              .rpc('handle_referral_signup', {
+                new_user_id: data.user.id,
+                referral_code_used: values.referralCode.toUpperCase()
+              })
+            
+            if (referralResult?.success) {
+              console.log('✅ Referral bonus applied:', referralResult.message)
+            } else if (referralError) {
+              console.error('❌ Referral error:', referralError)
+            }
+          } catch (err) {
+            console.error('❌ Referral processing failed:', err)
+          }
+        }
+
+        // Update profile with additional data from signup form
+        try {
+          await supabaseClient
+            .from('profiles')
+            .update({
+              name: values.name,
+              phone: values.phone || null,
+              city_id: values.cityId
             })
-          
-          if (referralResult?.success) {
-            console.log('Referral bonus applied:', referralResult.message)
-          } else {
-            console.error('Referral error:', referralResult?.error)
-          }
+            .eq('id', data.user.id)
+        } catch (err) {
+          console.error('Profile update error:', err)
         }
 
-        // Check if user was created and confirmed instantly
-        if (data.user && data.user.email_confirmed_at) {
-          // User is instantly confirmed - try immediate login
-          const { data: signInData, error: signInError } = await supabaseClient.auth.signInWithPassword({
-            email: values.email,
-            password: values.password,
-          })
-
-          if (!signInError && signInData.user) {
-            // Perfect! Instant login successful
-            router.push('/')
-            return
-          }
-        }
-
-        // If user created but not instantly confirmed, wait briefly then try login
-        if (data.user) {
-          await new Promise(resolve => setTimeout(resolve, 500))
-          
-          const { data: signInData, error: signInError } = await supabaseClient.auth.signInWithPassword({
-            email: values.email,
-            password: values.password,
-          })
-
-          if (!signInError && signInData.user) {
-            // Success after brief wait
-            router.push('/')
-            return
-          }
-          
-          // If still failing, user can login manually
-          console.log('Registration completed, user can now login')
-          const message = encodeURIComponent('Account created successfully! You can now login.')
-          router.push(`/auth/login?message=${message}`)
-        }
+        // Redirect to verification page
+        router.push(`/auth/verify-email?email=${encodeURIComponent(values.email)}`)
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred during registration')
@@ -195,14 +170,14 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-white flex flex-col">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
+        className="flex-1 flex flex-col px-6 py-6 overflow-y-auto"
       >
-        <div className="bg-white rounded-2xl shadow-xl p-8">
+        <div className="flex-1">
           {/* Header */}
           <div className="text-center mb-8">
             <motion.div
@@ -417,8 +392,8 @@ export default function RegisterPage() {
         </div>
 
         {/* Footer */}
-        <div className="text-center mt-6">
-          <Text type="secondary" className="text-sm">
+        <div className="text-center mt-6 pb-safe">
+          <Text type="secondary" className="text-xs">
             By creating an account, you agree to our{' '}
             <Link href="/terms" className="text-primary hover:underline">Terms of Service</Link>
             {' '}and{' '}

@@ -1,5 +1,3 @@
-'use client'
-
 import React from 'react'
 import { Avatar as AntAvatar, Badge, Button, Typography } from 'antd'
 import Link from 'next/link'
@@ -7,6 +5,8 @@ import {
   MoreOutlined,
   CheckCircleOutlined,
   CrownOutlined,
+  UserAddOutlined,
+  CheckOutlined,
 } from '@ant-design/icons'
 import { getProxiedImageUrl } from '../../lib/r2-storage'
 import { formatRelativeTime } from '../../lib/utils'
@@ -28,11 +28,15 @@ interface PostHeaderProps {
     }
   }
   isOwner: boolean
+  currentUserId?: string
+  isFollowing?: boolean
+  followLoading?: boolean
+  onFollowToggle?: () => void
   onEdit: () => void
   onDelete: () => void
 }
 
-export function PostHeader({ post, isOwner, onEdit, onDelete }: PostHeaderProps) {
+export function PostHeader({ post, isOwner, currentUserId, isFollowing, followLoading, onFollowToggle, onEdit, onDelete }: PostHeaderProps) {
   return (
     <div className="flex items-center justify-between p-4 pb-2">
       <Link
@@ -73,6 +77,21 @@ export function PostHeader({ post, isOwner, onEdit, onDelete }: PostHeaderProps)
 
       {isOwner ? (
         <PostOwnerActionMenu onEdit={onEdit} onDelete={onDelete} />
+      ) : currentUserId && onFollowToggle ? (
+        <Button
+          type={isFollowing ? "default" : "primary"}
+          size="small"
+          icon={isFollowing ? <CheckOutlined /> : <UserAddOutlined />}
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            onFollowToggle()
+          }}
+          loading={followLoading}
+          className={isFollowing ? "rounded-full" : "rounded-full"}
+        >
+          {isFollowing ? 'Following' : 'Follow'}
+        </Button>
       ) : (
         <Button
           type="text"

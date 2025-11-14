@@ -10,10 +10,11 @@ import {
   HistoryOutlined,
   ShoppingOutlined,
   TrophyOutlined,
-  UploadOutlined
+  UploadOutlined,
+  InfoCircleOutlined
 } from '@ant-design/icons'
 import { motion } from 'framer-motion'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useApp } from '../../lib/providers'
 import { supabaseClient } from '../../lib/supabase-client'
 import type { WalletSettings as WalletSettingsRow } from '../../lib/supabase'
@@ -57,6 +58,7 @@ export default function WalletPage() {
   const { user, refreshUser, isLoading } = useApp()
   const { message: messageApi } = App.useApp()
   const pathname = usePathname()
+  const router = useRouter()
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>([])
   const [loading, setLoading] = useState(true)
@@ -66,7 +68,11 @@ export default function WalletPage() {
   const [blueTickLoading, setBlueTickLoading] = useState(false)
   const [walletSettings, setWalletSettings] = useState<ResolvedWalletSettings | null>(null)
   const [settingsLoading, setSettingsLoading] = useState(true)
+  const [transactionPage, setTransactionPage] = useState(1)
+  const [transactionTotal, setTransactionTotal] = useState(0)
   const [form] = Form.useForm()
+
+  const TRANSACTIONS_PAGE_SIZE = 10
 
   const fetchSettings = useCallback(async () => {
     setSettingsLoading(true)
@@ -109,18 +115,21 @@ export default function WalletPage() {
     }
   }, [messageApi])
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (page: number = 1) => {
     if (!user) return
 
     setLoading(true)
     try {
-      // Fetch transactions
-      const { data: transactionsData } = await supabaseClient
+      // Fetch transactions with pagination and total count
+      const from = (page - 1) * TRANSACTIONS_PAGE_SIZE
+      const to = from + TRANSACTIONS_PAGE_SIZE - 1
+      
+      const { data: transactionsData, count } = await supabaseClient
         .from('points_transactions')
-        .select('id, type, amount, description, created_at, activity, reference_id')
+        .select('id, type, amount, description, created_at, activity, reference_id', { count: 'exact' })
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(20)
+        .range(from, to)
 
       // Fetch payment requests
       const { data: paymentsData } = await supabaseClient
@@ -131,13 +140,14 @@ export default function WalletPage() {
         .limit(10)
 
       setTransactions(transactionsData || [])
+      setTransactionTotal(count || 0)
       setPaymentRequests(paymentsData || [])
     } catch (error) {
       console.error('Error fetching wallet data:', error)
     } finally {
       setLoading(false)
     }
-  }, [user])
+  }, [user, TRANSACTIONS_PAGE_SIZE])
 
   useEffect(() => {
     fetchSettings()
@@ -145,18 +155,18 @@ export default function WalletPage() {
 
   useEffect(() => {
     if (!isLoading) {
-      fetchData()
+      fetchData(transactionPage)
     }
-  }, [fetchData, fetchSettings, isLoading, pathname])
+  }, [fetchData, fetchSettings, isLoading, pathname, transactionPage])
 
   useEffect(() => {
     const onFocus = () => {
-      fetchData()
+      fetchData(transactionPage)
       fetchSettings()
     }
     const onVisible = () => {
       if (document.visibilityState === 'visible') {
-        fetchData()
+        fetchData(transactionPage)
         fetchSettings()
       }
     }
@@ -166,7 +176,11 @@ export default function WalletPage() {
       window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [fetchData, fetchSettings])
+  }, [fetchData, fetchSettings, transactionPage])
+
+  const handleTransactionPageChange = (page: number) => {
+    setTransactionPage(page)
+  }
 
   const getNativeFileMeta = (file: any) => {
     if (typeof window === 'undefined') return null
@@ -231,22 +245,7 @@ export default function WalletPage() {
       setShowBuyPoints(false)
       form.resetFields()
       // Refresh lists without full reload
-      const [{ data: transactionsData }, { data: paymentsData }] = await Promise.all([
-        supabaseClient
-          .from('points_transactions')
-          .select('*')
-          .eq('user_id', user!.id)
-          .order('created_at', { ascending: false })
-          .limit(20),
-        supabaseClient
-          .from('payment_requests')
-          .select('*')
-          .eq('user_id', user!.id)
-          .order('created_at', { ascending: false })
-          .limit(10)
-      ])
-      setTransactions(transactionsData || [])
-      setPaymentRequests(paymentsData || [])
+      await fetchData(transactionPage)
     } catch (error) {
       console.error('[BuyPoints] Submit error', error)
       messageApi.error('Failed to submit payment request')
@@ -282,7 +281,7 @@ export default function WalletPage() {
 
       messageApi.success('Blue tick purchased successfully! 🎉')
       setShowBlueTick(false)
-      await Promise.all([refreshUser(), fetchData()])
+      await Promise.all([refreshUser(), fetchData(transactionPage)])
     } catch (error) {
       console.error('[BlueTick] purchase error', error)
       messageApi.error('Failed to purchase blue tick')
@@ -443,10 +442,20 @@ export default function WalletPage() {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <Title level={2} className="text-center mb-6">
-            <WalletOutlined className="mr-2" />
-            My Wallet
-          </Title>
+          <div className="text-center mb-6">
+            <Title level={2} className="mb-2">
+              <WalletOutlined className="mr-2" />
+              My Wallet
+            </Title>
+            <Button
+              type="link"
+              icon={<InfoCircleOutlined />}
+              onClick={() => router.push('/wallet-policy')}
+              className="text-primary"
+            >
+              View Wallet & Monetization Policy
+            </Button>
+          </div>
         </motion.div>
 
         {/* Points Balance Card */}
@@ -600,34 +609,57 @@ export default function WalletPage() {
                 No transactions yet
               </div>
             ) : (
-              <List
-                dataSource={transactions}
-                renderItem={(transaction) => (
-                  <List.Item className="border-0 px-0">
-                    <List.Item.Meta
-                      avatar={getTransactionIcon(transaction.type)}
-                      title={
-                        <div className="flex justify-between items-center">
-                          <span>{transaction.description}</span>
-                          <Tag color={getTransactionColor(transaction.type)}>
-                            {transaction.amount > 0 ? '+' : ''}{formatNumber(transaction.amount)}
-                          </Tag>
-                        </div>
-                      }
-                      description={
-                        <div className="flex items-center gap-2">
-                          {getActivityLabel(transaction.activity) && (
-                            <Tag color="blue" className="m-0">
-                              {getActivityLabel(transaction.activity)}
+              <>
+                <List
+                  dataSource={transactions}
+                  renderItem={(transaction) => (
+                    <List.Item className="border-0 px-0">
+                      <List.Item.Meta
+                        avatar={getTransactionIcon(transaction.type)}
+                        title={
+                          <div className="flex justify-between items-center">
+                            <span>{transaction.description}</span>
+                            <Tag color={getTransactionColor(transaction.type)}>
+                              {transaction.amount > 0 ? '+' : ''}{formatNumber(transaction.amount)}
                             </Tag>
-                          )}
-                          <span>{formatRelativeTime(transaction.created_at)}</span>
-                        </div>
-                      }
-                    />
-                  </List.Item>
+                          </div>
+                        }
+                        description={
+                          <div className="flex items-center gap-2">
+                            {getActivityLabel(transaction.activity) && (
+                              <Tag color="blue" className="m-0">
+                                {getActivityLabel(transaction.activity)}
+                              </Tag>
+                            )}
+                            <span>{formatRelativeTime(transaction.created_at)}</span>
+                          </div>
+                        }
+                      />
+                    </List.Item>
+                  )}
+                />
+                {transactionTotal > TRANSACTIONS_PAGE_SIZE && (
+                  <div className="flex justify-center mt-4">
+                    <Button.Group>
+                      <Button
+                        onClick={() => handleTransactionPageChange(transactionPage - 1)}
+                        disabled={transactionPage === 1}
+                      >
+                        Previous
+                      </Button>
+                      <Button disabled>
+                        Page {transactionPage} of {Math.ceil(transactionTotal / TRANSACTIONS_PAGE_SIZE)}
+                      </Button>
+                      <Button
+                        onClick={() => handleTransactionPageChange(transactionPage + 1)}
+                        disabled={transactionPage >= Math.ceil(transactionTotal / TRANSACTIONS_PAGE_SIZE)}
+                      >
+                        Next
+                      </Button>
+                    </Button.Group>
+                  </div>
                 )}
-              />
+              </>
             )}
           </Card>
         </motion.div>
@@ -703,15 +735,30 @@ export default function WalletPage() {
               showIcon
               message={`Rate: 1 INR = ${formatNumber(walletSettings.points_rate)} points`}
               description={
-                <div className="mt-2 space-y-1 text-sm">
-                  {walletSettings.upi_id && <div><strong>UPI ID:</strong> {walletSettings.upi_id}</div>}
-                  {walletSettings.account_name && <div><strong>Account Name:</strong> {walletSettings.account_name}</div>}
-                  {walletSettings.bank_name && <div><strong>Bank:</strong> {walletSettings.bank_name}</div>}
-                  {walletSettings.account_number && <div><strong>Account No:</strong> {walletSettings.account_number}</div>}
-                  {walletSettings.ifsc_code && <div><strong>IFSC:</strong> {walletSettings.ifsc_code}</div>}
+                <div className="mt-2 space-y-2">
+                  <div className="space-y-1 text-sm">
+                    <div><strong>UPI ID:</strong> 44078944317@sbi</div>
+                    <div><strong>Account Name:</strong> Next Update News Agency</div>
+                    <div><strong>Account No:</strong> 44078944317</div>
+                    <div><strong>IFSC:</strong> SBIN0001687</div>
+                    <div><strong>Branch:</strong> BANSGAON</div>
+                  </div>
+                  
+                  <div className="flex justify-center my-4">
+                    <img 
+                      src="/payment-qr.png" 
+                      alt="Payment QR Code" 
+                      className="w-48 h-48 border-2 border-gray-300 rounded-lg"
+                    />
+                  </div>
+                  
                   {walletSettings.payment_instructions && (
-                    <div className="text-gray-600">{walletSettings.payment_instructions}</div>
+                    <div className="text-gray-600 text-sm">{walletSettings.payment_instructions}</div>
                   )}
+                  
+                  <div className="text-xs text-gray-500 mt-2">
+                    Scan the QR code or use UPI ID to make payment, then upload screenshot below.
+                  </div>
                 </div>
               }
               className="mb-4"

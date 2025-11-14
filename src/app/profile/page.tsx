@@ -11,13 +11,15 @@ import {
   CrownOutlined,
   CameraOutlined,
   UploadOutlined,
-  SafetyCertificateOutlined
+  SafetyCertificateOutlined,
+  InfoCircleOutlined,
+  WalletOutlined
 } from '@ant-design/icons'
 import { motion } from 'framer-motion'
 import { useApp } from '../../lib/providers'
 import { useRouter, usePathname } from 'next/navigation'
 import { socialActions, supabaseClient } from '../../lib/supabase-client'
-import { formatNumber } from '../../lib/utils'
+import { formatNumber, APP_STORE_LINK } from '../../lib/utils'
 import { uploadToR2, generateFileKey, getProxiedImageUrl } from '../../lib/r2-storage'
 import { PostList } from '../../components/posts/PostList'
 import type { PostWithAuthor } from '../../components/posts/PostCard'
@@ -298,19 +300,18 @@ export default function ProfilePage() {
   }
 
   const shareProfile = async () => {
-    const referralLink = `${window.location.origin}/auth/register?ref=${user?.referral_code}`
     let channel: string | null = null
     
     try {
       if (navigator.share) {
         await navigator.share({
-          title: `Join ${user?.name} on Ghar Khojo!`,
-          text: `Use my referral code ${user?.referral_code} and get 100 points!`,
-          url: referralLink,
+          title: `Join ${user?.name} on Next Update!`,
+          text: `Use my referral code ${user?.referral_code} and get 100 points!\n\nDownload Next Update app: ${APP_STORE_LINK}`,
+          url: APP_STORE_LINK,
         })
         channel = 'native_share'
       } else {
-        await navigator.clipboard.writeText(referralLink)
+        await navigator.clipboard.writeText(`Join ${user?.name} on Next Update! Use referral code ${user?.referral_code} and get 100 points!\n\nDownload the app: ${APP_STORE_LINK}`)
         messageApi.success('Referral link copied to clipboard!')
         channel = 'clipboard'
       }
@@ -489,6 +490,37 @@ export default function ProfilePage() {
               </Card>
             </motion.div>
           )}
+
+          {/* Wallet & Monetization Policy */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            <Card className="rounded-xl bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <WalletOutlined className="text-2xl text-blue-500" />
+                  <div>
+                    <Text strong>Wallet & Monetization</Text>
+                    <div className="text-xs text-gray-600 mt-1">
+                      Learn how to earn and monetize
+                    </div>
+                  </div>
+                </div>
+                
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<InfoCircleOutlined />}
+                  onClick={() => router.push('/wallet-policy')}
+                  className="rounded-full"
+                >
+                  View Policy
+                </Button>
+              </div>
+            </Card>
+          </motion.div>
         </div>
 
         {/* Content Tabs */}

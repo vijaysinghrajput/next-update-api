@@ -1,13 +1,9 @@
 {
-  "mcpServers": {
-    "supabase": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-supabase",
-        "https://iuiyvteuleqknwkdeqde.supabase.co",
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1aXl2dGV1bGVxa253a2RlcWRlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjE1Mzc4MiwiZXhwIjoyMDc3NzI5NzgyfQ.QcJ67egIbYF1f3z3lev74BPK0-0dRsN9Nemyr81A7UA"
-      ]
-    }
-  }
+	"servers": {
+		"supabase": {
+			"type": "http",
+			"url": "https://mcp.supabase.com/mcp?project_ref=iuiyvteuleqknwkdeqde"
+		}
+	},
+	"inputs": []
 }

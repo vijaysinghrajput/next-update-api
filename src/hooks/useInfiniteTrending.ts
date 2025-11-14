@@ -21,6 +21,7 @@ interface TrendingPost {
     has_blue_tick: boolean
   }
   is_liked?: boolean
+  is_following?: boolean
 }
 
 interface UseInfiniteTrendingParams {
@@ -75,6 +76,9 @@ export function useInfiniteTrending({
       }
 
       const postIds = postsData.map((p) => p.id)
+      const userIds = postsData.map((p) => p.user_id)
+      
+      // Get likes
       const { data: likesData } = await supabaseClient
         .from('post_likes')
         .select('post_id')
@@ -82,10 +86,20 @@ export function useInfiniteTrending({
         .in('post_id', postIds)
 
       const likedPostIds = new Set(likesData?.map((l) => l.post_id) || [])
+      
+      // Get follow status
+      const { data: followsData } = await supabaseClient
+        .from('follows')
+        .select('following_id')
+        .eq('follower_id', userId)
+        .in('following_id', userIds)
+      
+      const followingUserIds = new Set(followsData?.map((f) => f.following_id) || [])
 
       const posts = postsData.map((post) => ({
         ...post,
         is_liked: likedPostIds.has(post.id),
+        is_following: followingUserIds.has(post.user_id),
       }))
 
       return {

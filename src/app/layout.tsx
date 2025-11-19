@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   description: "Connect, share, and earn points in your city. Join the social platform where community meets rewards.",
   keywords: "social media, referral, points, city-based, community, uttar pradesh",
   authors: [{ name: "Next Update Team" }],
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no',
+  viewport: 'width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover',
   themeColor: '#007AFF',
 };
 
@@ -48,6 +48,10 @@ export default function RootLayout({
         <meta name="format-detection" content="telephone=no" />
         <meta name="theme-color" content="#0F172A" />
         <meta name="color-scheme" content="light only" />
+        <meta name="apple-touch-fullscreen" content="yes" />
+        <meta name="apple-mobile-web-app-orientations" content="portrait" />
+        <meta name="apple-touch-fullscreen" content="yes" />
+        <meta name="apple-mobile-web-app-orientations" content="portrait" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}

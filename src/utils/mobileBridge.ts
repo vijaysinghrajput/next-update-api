@@ -219,6 +219,8 @@ export const shareContent = (data: {
   url?: string
   image?: string
 }): void => {
+  console.log('[MobileBridge] shareContent called', { data, isMobile: isMobileApp(), hasReactNativeWebView: !!window.ReactNativeWebView })
+  
   // Add app store link to share content
   const shareData = {
     title: data.title,
@@ -227,11 +229,14 @@ export const shareContent = (data: {
   }
   
   if (isMobileApp()) {
+    console.log('[MobileBridge] Using native share', shareData)
     sendToNativeApp('share', shareData)
   } else if (navigator.share) {
+    console.log('[MobileBridge] Using web share API', shareData)
     // Use native Web Share API if available
     navigator.share(shareData).catch(err => console.log('Share failed:', err))
   } else {
+    console.log('[MobileBridge] Fallback to clipboard', shareData)
     // Fallback: copy to clipboard
     const text = [shareData.title, shareData.text, shareData.url].filter(Boolean).join('\n')
     navigator.clipboard.writeText(text).then(() => {

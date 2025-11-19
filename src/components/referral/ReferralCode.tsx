@@ -7,6 +7,7 @@ import { motion } from 'framer-motion'
 import { socialActions, supabaseClient } from '../../lib/supabase-client'
 import { useApp } from '../../lib/providers'
 import { APP_STORE_LINK } from '../../lib/utils'
+import { shareContent } from '../../utils/mobileBridge'
 
 const { Title, Text, Paragraph } = Typography
 
@@ -79,26 +80,20 @@ export default function ReferralCode() {
 
   const shareReferralLink = async () => {
     const referralCode = referralData?.referralCode
-    let channel: string | null = null
     
     try {
-      if (navigator.share) {
-        await navigator.share({
-          title: 'Join Next Update',
-          text: `Join me on Next Update and we both get 100 bonus points! Use referral code: ${referralCode}\n\nDownload the app: ${APP_STORE_LINK}`,
-          url: APP_STORE_LINK
-        })
-        channel = 'native_share'
-      } else {
-        await navigator.clipboard.writeText(`Join me on Next Update! Use referral code: ${referralCode}\n\nDownload the app: ${APP_STORE_LINK}`)
-        message.success('Referral link copied to clipboard!')
-        channel = 'clipboard'
-      }
+      // Use mobile bridge for native sharing - we're always in WebView
+      shareContent({
+        title: 'Join Next Update',
+        text: `Join me on Next Update and we both get 100 bonus points! Use referral code: ${referralCode}`,
+        url: APP_STORE_LINK
+      })
 
+      // Always use native_share since we're in WebView
       if (user) {
         await socialActions.logAppShare(user.id, {
           target: 'referral_link',
-          channel,
+          channel: 'native_share',
           metadata: {
             referralCode: referralData?.referralCode,
           },

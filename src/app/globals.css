@@ -250,7 +250,99 @@ body {
 @media (max-width: 768px) {
   body {
     overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
   }
+
+  /* Allow text selection for inputs and content areas */
+  input, textarea, select, [contenteditable] {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+  }
+
+  /* Prevent zoom on input focus */
+  input[type="text"], 
+  input[type="email"], 
+  input[type="password"], 
+  input[type="number"], 
+  input[type="tel"], 
+  input[type="url"], 
+  textarea, 
+  select {
+    font-size: 16px !important;
+    transform: translateZ(0);
+    transition: none;
+  }
+
+  /* Better touch targets - minimum 44px */
+  button, 
+  .ant-btn, 
+  .ant-input, 
+  .ant-select-selector,
+  [role="button"] {
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+
+  /* Prevent text selection on UI elements */
+  .ant-btn,
+  .ant-dropdown-menu,
+  .ant-tabs,
+  .ant-card-head,
+  [role="button"] {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+
+  /* Native app feel */
+  * {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+
+  /* Touch feedback for interactive elements */
+  button:active,
+  .ant-btn:active,
+  [role="button"]:active,
+  .ant-dropdown-trigger:active,
+  .ant-menu-item:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease;
+  }
+
+  /* Smooth scrolling */
+  html {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Prevent horizontal scroll */
+  html, body {
+    overflow-x: hidden;
+    width: 100%;
+    position: relative;
+  }
+
+  /* Fix for WebView scaling issues */
+  .ant-modal-content,
+  .ant-drawer-content {
+    transform: translateZ(0);
+  }
+}
+
+/* Remove blue highlight on touch for all browsers */
+* {
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Scrollbar styling */

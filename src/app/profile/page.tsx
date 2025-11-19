@@ -18,7 +18,7 @@ import {
 import { motion } from 'framer-motion'
 import { useApp } from '../../lib/providers'
 import { useRouter, usePathname } from 'next/navigation'
-import { mobileAwareFileUpload, isMobileApp } from '../../utils/mobileBridge'
+import { mobileAwareFileUpload, isMobileApp, shareContent } from '../../utils/mobileBridge'
 import { socialActions, supabaseClient } from '../../lib/supabase-client'
 import { formatNumber, APP_STORE_LINK } from '../../lib/utils'
 import { uploadToR2, generateFileKey, getProxiedImageUrl } from '../../lib/r2-storage'
@@ -230,67 +230,65 @@ export default function ProfilePage() {
     }
   }
 
-  // Mobile-aware upload handlers
-  const handleAvatarUpload = async () => {
+  // Universal mobile-aware customRequest handler (same pattern as working posts)
+  const handleAvatarCustomRequest = async ({ file, onSuccess, onError }: any) => {
     try {
-      const files = await mobileAwareFileUpload({
-        accept: 'image/*',
-        multiple: false,
-        maxCount: 1
-      })
+      console.log('[Profile] Avatar customRequest for:', file.name)
       
-      if (files.length > 0) {
-        const file = files[0]
-        form.setFieldsValue({
-          avatar: {
-            fileList: [file],
-            file: file
-          }
-        })
+      if (isMobileApp()) {
+        const nativeMeta = getNativeFileMeta(file)
+        if (nativeMeta?.url) {
+          console.log('[Profile] Native file with R2 URL:', nativeMeta.url)
+          onSuccess?.({ url: nativeMeta.url }, file)
+          return
+        }
       }
+      
+      // For web, mark as ready for upload
+      onSuccess?.('ok', file)
     } catch (error) {
-      console.error('Error selecting avatar:', error)
-      messageApi.error('Failed to select image')
+      console.error('[Profile] Avatar upload error:', error)
+      onError?.(error)
     }
   }
 
-  const handleAadharFrontUpload = async () => {
+  const handleKycFrontCustomRequest = async ({ file, onSuccess, onError }: any) => {
     try {
-      const files = await mobileAwareFileUpload({
-        accept: 'image/*',
-        multiple: false,
-        maxCount: 1
-      })
+      console.log('[Profile] KYC Front customRequest for:', file.name)
       
-      if (files.length > 0) {
-        const file = files[0]
-        form.setFieldsValue({
-          aadharFront: [file]
-        })
+      if (isMobileApp()) {
+        const nativeMeta = getNativeFileMeta(file)
+        if (nativeMeta?.url) {
+          console.log('[Profile] Native KYC front with R2 URL:', nativeMeta.url)
+          onSuccess?.({ url: nativeMeta.url }, file)
+          return
+        }
       }
+      
+      onSuccess?.('ok', file)
     } catch (error) {
-      console.error('Error selecting Aadhar front:', error)
-      messageApi.error('Failed to select image')
+      console.error('[Profile] KYC front upload error:', error)
+      onError?.(error)
     }
   }
 
-  const handleAadharBackUpload = async () => {
+  const handleKycBackCustomRequest = async ({ file, onSuccess, onError }: any) => {
     try {
-      const files = await mobileAwareFileUpload({
-        accept: 'image/*',
-        multiple: false,
-        maxCount: 1
-      })
+      console.log('[Profile] KYC Back customRequest for:', file.name)
       
-      if (files.length > 0) {
-        const file = files[0]
-        form.setFieldsValue({
-          aadharBack: [file]
-        })
+      if (isMobileApp()) {
+        const nativeMeta = getNativeFileMeta(file)
+        if (nativeMeta?.url) {
+          console.log('[Profile] Native KYC back with R2 URL:', nativeMeta.url)
+          onSuccess?.({ url: nativeMeta.url }, file)
+          return
+        }
       }
+      
+      onSuccess?.('ok', file)
     } catch (error) {
-      console.error('Error selecting Aadhar back:', error)
-      messageApi.error('Failed to select image')
+      console.error('[Profile] KYC back upload error:', error)
+      onError?.(error)
     }
   }
 
@@ -365,26 +363,19 @@ export default function ProfilePage() {
   }
 
   const shareProfile = async () => {
-    let channel: string | null = null
-    
     try {
-      if (navigator.share) {
-        await navigator.share({
-          title: `Join ${user?.name} on Next Update!`,
-          text: `Use my referral code ${user?.referral_code} and get 100 points!\n\nDownload Next Update app: ${APP_STORE_LINK}`,
-          url: APP_STORE_LINK,
-        })
-        channel = 'native_share'
-      } else {
-        await navigator.clipboard.writeText(`Join ${user?.name} on Next Update! Use referral code ${user?.referral_code} and get 100 points!\n\nDownload the app: ${APP_STORE_LINK}`)
-        messageApi.success('Referral link copied to clipboard!')
-        channel = 'clipboard'
-      }
+      // Use mobile bridge for native sharing - we're always in WebView
+      shareContent({
+        title: `Join ${user?.name} on Next Update!`,
+        text: `Use my referral code ${user?.referral_code} and get 100 points!`,
+        url: `https://app.nextupdate.in/profile/${user?.id}` // Link to actual profile
+      })
 
+      // Always use native_share since we're in WebView
       if (user) {
         await socialActions.logAppShare(user.id, {
           target: 'profile_share',
-          channel,
+          channel: 'native_share',
           metadata: {
             referralCode: user.referral_code,
           },
@@ -655,37 +646,24 @@ export default function ProfilePage() {
             cityId: user.city_id
           }}
         >
-          <Form.Item name="avatar" label="Profile Picture">
-            {isMobileApp() ? (
-              <div onClick={handleAvatarUpload} style={{ cursor: 'pointer' }}>
-                <Upload
-                  listType="picture-circle"
-                  maxCount={1}
-                  beforeUpload={() => false}
-                  accept="image/*"
-                  showUploadList={{ showPreviewIcon: false }}
-                  disabled
-                >
-                  <div>
-                    <CameraOutlined />
-                    <div style={{ marginTop: 8 }}>Upload</div>
-                  </div>
-                </Upload>
+          <Form.Item 
+            name="avatar" 
+            label="Profile Picture"
+            valuePropName="fileList"
+            getValueFromEvent={(e) => (Array.isArray(e) ? e : e?.fileList)}
+          >
+            <Upload
+              listType="picture-circle"
+              maxCount={1}
+              customRequest={handleAvatarCustomRequest}
+              accept="image/*"
+              showUploadList={{ showPreviewIcon: false }}
+            >
+              <div>
+                <CameraOutlined />
+                <div style={{ marginTop: 8 }}>Upload</div>
               </div>
-            ) : (
-              <Upload
-                listType="picture-circle"
-                maxCount={1}
-                beforeUpload={() => false}
-                accept="image/*"
-                showUploadList={{ showPreviewIcon: false }}
-              >
-                <div>
-                  <CameraOutlined />
-                  <div style={{ marginTop: 8 }}>Upload</div>
-                </div>
-              </Upload>
-            )}
+            </Upload>
           </Form.Item>
 
           <Form.Item
@@ -744,34 +722,17 @@ export default function ProfilePage() {
             valuePropName="fileList"
             getValueFromEvent={(e) => (Array.isArray(e) ? e : e?.fileList)}
           >
-            {isMobileApp() ? (
-              <div onClick={handleAadharFrontUpload} style={{ cursor: 'pointer' }}>
-                <Upload
-                  listType="picture-card"
-                  maxCount={1}
-                  beforeUpload={() => false}
-                  accept="image/*"
-                  disabled
-                >
-                  <div>
-                    <UploadOutlined />
-                    <div style={{ marginTop: 8 }}>Front</div>
-                  </div>
-                </Upload>
+            <Upload
+              listType="picture-card"
+              maxCount={1}
+              customRequest={handleKycFrontCustomRequest}
+              accept="image/*"
+            >
+              <div>
+                <UploadOutlined />
+                <div style={{ marginTop: 8 }}>Front</div>
               </div>
-            ) : (
-              <Upload
-                listType="picture-card"
-                maxCount={1}
-                beforeUpload={() => false}
-                accept="image/*"
-              >
-                <div>
-                  <UploadOutlined />
-                  <div style={{ marginTop: 8 }}>Front</div>
-                </div>
-              </Upload>
-            )}
+            </Upload>
           </Form.Item>
 
           <Form.Item
@@ -781,34 +742,17 @@ export default function ProfilePage() {
             valuePropName="fileList"
             getValueFromEvent={(e) => (Array.isArray(e) ? e : e?.fileList)}
           >
-            {isMobileApp() ? (
-              <div onClick={handleAadharBackUpload} style={{ cursor: 'pointer' }}>
-                <Upload
-                  listType="picture-card"
-                  maxCount={1}
-                  beforeUpload={() => false}
-                  accept="image/*"
-                  disabled
-                >
-                  <div>
-                    <UploadOutlined />
-                    <div style={{ marginTop: 8 }}>Back</div>
-                  </div>
-                </Upload>
+            <Upload
+              listType="picture-card"
+              maxCount={1}
+              customRequest={handleKycBackCustomRequest}
+              accept="image/*"
+            >
+              <div>
+                <UploadOutlined />
+                <div style={{ marginTop: 8 }}>Back</div>
               </div>
-            ) : (
-              <Upload
-                listType="picture-card"
-                maxCount={1}
-                beforeUpload={() => false}
-                accept="image/*"
-              >
-                <div>
-                  <UploadOutlined />
-                  <div style={{ marginTop: 8 }}>Back</div>
-                </div>
-              </Upload>
-            )}
+            </Upload>
           </Form.Item>
 
           <Form.Item>

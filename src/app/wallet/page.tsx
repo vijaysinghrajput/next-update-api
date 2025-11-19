@@ -190,24 +190,25 @@ export default function WalletPage() {
     return origin && store ? store.get(origin) : null
   }
 
-  // Mobile-aware upload handler for payment screenshot
-  const handleMobileScreenshotUpload = async () => {
+  // Mobile-aware customRequest handler (same pattern as working posts)
+  const handleScreenshotCustomRequest = async ({ file, onSuccess, onError }: any) => {
     try {
-      const files = await mobileAwareFileUpload({
-        accept: 'image/*',
-        multiple: false,
-        maxCount: 1
-      })
+      console.log('[Wallet] Screenshot customRequest for:', file.name)
       
-      if (files.length > 0) {
-        const file = files[0]
-        form.setFieldsValue({
-          screenshot: [file]
-        })
+      if (isMobileApp()) {
+        const nativeMeta = getNativeFileMeta(file)
+        if (nativeMeta?.url) {
+          console.log('[Wallet] Native file with R2 URL:', nativeMeta.url)
+          onSuccess?.({ url: nativeMeta.url }, file)
+          return
+        }
       }
+      
+      // For web, mark as ready for upload
+      onSuccess?.('ok', file)
     } catch (error) {
-      console.error('Error selecting payment screenshot:', error)
-      messageApi.error('Failed to select image')
+      console.error('[Wallet] Screenshot upload error:', error)
+      onError?.(error)
     }
   }
 
@@ -817,34 +818,17 @@ export default function WalletPage() {
               valuePropName="fileList"
               getValueFromEvent={(e) => (Array.isArray(e) ? e : e?.fileList)}
             >
-              {isMobileApp() ? (
-                <div onClick={handleMobileScreenshotUpload} style={{ cursor: 'pointer' }}>
-                  <Upload
-                    listType="picture-card"
-                    maxCount={1}
-                    beforeUpload={() => false}
-                    accept="image/*"
-                    disabled
-                  >
-                    <div>
-                      <UploadOutlined />
-                      <div style={{ marginTop: 8 }}>Upload</div>
-                    </div>
-                  </Upload>
+              <Upload
+                listType="picture-card"
+                maxCount={1}
+                customRequest={handleScreenshotCustomRequest}
+                accept="image/*"
+              >
+                <div>
+                  <UploadOutlined />
+                  <div style={{ marginTop: 8 }}>Upload</div>
                 </div>
-              ) : (
-                <Upload
-                  listType="picture-card"
-                  maxCount={1}
-                  beforeUpload={() => false}
-                  accept="image/*"
-                >
-                  <div>
-                    <UploadOutlined />
-                    <div style={{ marginTop: 8 }}>Upload</div>
-                  </div>
-                </Upload>
-              )}
+              </Upload>
             </Form.Item>
 
             <Form.Item>

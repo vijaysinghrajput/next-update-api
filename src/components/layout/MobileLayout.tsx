@@ -90,11 +90,6 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
       onClick: () => router.push('/profile')
     },
     {
-      key: 'settings',
-      label: 'Settings',
-      onClick: () => router.push('/settings')
-    },
-    {
       key: 'logout',
       label: 'Logout',
       onClick: handleLogout
@@ -108,6 +103,9 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
         paddingBottom: 'calc(var(--safe-area-bottom, 0px) + 88px)',
         paddingLeft: 'var(--safe-area-left, 0px)',
         paddingRight: 'var(--safe-area-right, 0px)',
+        WebkitTapHighlightColor: 'transparent',
+        WebkitTouchCallout: 'none',
+        touchAction: 'manipulation',
       }}
     >
       {/* Top Header */}

@@ -21,6 +21,13 @@ export default function EditProfilePage() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [initialCityName, setInitialCityName] = useState<string | null>(null)
 
+  const getNativeFileMeta = (file: any) => {
+    if (typeof window === 'undefined') return null
+    const store: WeakMap<File, any> | undefined = (window as any).__nativeFileMeta
+    const origin = file?.originFileObj || file
+    return origin && store ? store.get(origin) : null
+  }
+
   useEffect(() => {
     const init = async () => {
       console.debug('[EditProfile] init start')
@@ -97,17 +104,30 @@ export default function EditProfilePage() {
     return res.url
   }
 
-  const handleMobileUpload = async () => {
-    if (!isMobileApp()) return
+  const handleAvatarCustomRequest = async ({ file, onSuccess, onError }: any) => {
     try {
-      const files = await mobileAwareFileUpload({ accept: 'image/*', multiple: false, maxCount: 1 })
-      if (files.length > 0) {
-        const url = await handleUpload(files[0])
-        return url
+      console.log('[ProfileEdit] Avatar customRequest for:', file.name)
+      
+      if (isMobileApp()) {
+        const nativeMeta = getNativeFileMeta(file)
+        if (nativeMeta?.url) {
+          console.log('[ProfileEdit] Native file with R2 URL:', nativeMeta.url)
+          setAvatarUrl(nativeMeta.url)
+          message.success('Avatar updated successfully!')
+          onSuccess?.({ url: nativeMeta.url }, file)
+          return
+        }
       }
+      
+      // For web, upload and update
+      const url = await handleUpload(file as File)
+      setAvatarUrl(url)
+      message.success('Avatar updated successfully!')
+      onSuccess?.({ url }, file)
     } catch (error) {
-      console.error('[ProfileEdit] Mobile upload error:', error)
-      message.error('Mobile upload failed')
+      console.error('[ProfileEdit] Avatar upload error:', error)
+      message.error('Avatar upload failed')
+      onError?.(error)
     }
   }
 
@@ -163,23 +183,13 @@ export default function EditProfilePage() {
             <AntAvatar size={64} src={getProxiedImageUrl(avatarUrl) || undefined}>
               {!avatarUrl && (user?.name?.[0] || 'U')}
             </AntAvatar>
-            <div onClick={isMobileApp() ? handleMobileUpload : undefined}>
-              <Upload
-                accept="image/*"
-                showUploadList={false}
-                customRequest={async ({ file, onSuccess, onError }) => {
-                  try {
-                    const url = await handleUpload(file as File)
-                    if (url && onSuccess) onSuccess({ url } as any)
-                  } catch (e) {
-                    if (onError) onError(e as any)
-                  }
-                }}
-                disabled={isMobileApp()}
-              >
-                <Button icon={<UploadOutlined />}>Change Photo</Button>
-              </Upload>
-            </div>
+            <Upload
+              accept="image/*"
+              showUploadList={false}
+              customRequest={handleAvatarCustomRequest}
+            >
+              <Button icon={<UploadOutlined />}>Change Photo</Button>
+            </Upload>
           </Space>
 
           <Form layout="vertical" form={form} onFinish={onFinish}>

@@ -16,6 +16,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import { formatRelativeTime, formatNumber, APP_STORE_LINK } from '../../lib/utils'
 import { socialActions, supabaseClient } from '../../lib/supabase-client'
+import { shareContent } from '../../utils/mobileBridge'
 import { extractUrls, LinkPreviewData } from '../../utils/linkPreview'
 import { getBasePreviews, enhancePreviews } from '../../utils/linkPreviewCache'
 import LinkPreview from '../shared/LinkPreview'
@@ -337,24 +338,18 @@ export default function PostCard({ post, currentUserId, onUpdate, onDelete }: Po
   }
 
   const handleShare = async () => {
-    let channel: string | null = null
-
     try {
-      if (navigator.share) {
-        await navigator.share({
-          title: `${post.profiles.name}'s post on Next Update`,
-          text: `${post.caption || 'Check out this post!'}\n\nDownload Next Update app: ${APP_STORE_LINK}`,
-          url: APP_STORE_LINK,
-        })
-        channel = 'native_share'
-      } else {
-        await navigator.clipboard.writeText(`${post.caption || 'Check out this post!'}\n\nDownload Next Update app: ${APP_STORE_LINK}`)
-        messageApi.success('Link copied to clipboard!')
-        channel = 'clipboard'
-      }
+      // Use mobile bridge for native sharing - we're always in WebView
+      shareContent({
+        title: `${post.profiles.name}'s post on Next Update`,
+        text: post.caption || 'Check out this post!',
+        url: `https://app.nextupdate.in/post/${post.id}`, // Link to actual post
+        image: post.media_urls[0] // First media as image
+      })
 
+      // Always use native_share since we're in WebView
       const { error } = await socialActions.sharePost(post.id, currentUserId, {
-        channel,
+        channel: 'native_share',
         metadata: {
           postOwner: post.profiles.id,
         },

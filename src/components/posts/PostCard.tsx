@@ -337,12 +337,37 @@ export default function PostCard({ post, currentUserId, onUpdate, onDelete }: Po
     }
   }
 
+  // Helper function to create short share content
+  const createShareContent = (caption: string | null, title?: string | null): string => {
+    const heading = title || `${post.profiles.name}'s post`
+    
+    if (!caption) {
+      return `${heading}...`
+    }
+
+    // Remove URLs and clean text
+    const cleanText = caption
+      .replace(/https?:\/\/[^\s]+/g, '') // Remove URLs
+      .replace(/\n+/g, ' ') // Replace newlines with spaces
+      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+      .trim()
+
+    // Take first 10-15 words
+    const words = cleanText.split(' ').slice(0, 12)
+    const snippet = words.join(' ')
+    
+    return `${heading}: ${snippet}${cleanText.length > snippet.length ? '...' : ''}`
+  }
+
   const handleShare = async () => {
     try {
+      // Create short share content with heading and snippet
+      const shortContent = createShareContent(post.caption, post.title)
+      
       // Use mobile bridge for native sharing - we're always in WebView
       shareContent({
         title: `${post.profiles.name}'s post on Next Update`,
-        text: post.caption || 'Check out this post!',
+        text: `${shortContent}\n\n📰 Read full news & connect with your community!`,
         url: `https://app.nextupdate.in/post/${post.id}`, // Link to actual post
         image: post.media_urls[0] // First media as image
       })

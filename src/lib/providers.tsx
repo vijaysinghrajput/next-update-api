@@ -31,7 +31,10 @@ interface AppContextType {
   userCity: string | null
   isLoading: boolean
   isCityReady: boolean // New: indicates city is loaded and ready
+  isGuest: boolean // New: indicates if user is in guest mode
+  showCitySelection: boolean // New: show city selection modal
   setSelectedCity: (city: string) => void
+  setShowCitySelection: (show: boolean) => void
   refreshUser: () => Promise<void>
 }
 
@@ -97,6 +100,7 @@ export function Providers({ children }: ProvidersProps) {
   const [userCity, setUserCity] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isCityReady, setIsCityReady] = useState(false)
+  const [showCitySelection, setShowCitySelection] = useState(false)
 
   // Initialize auto-like system
   useAutoLikeSystem()
@@ -134,11 +138,20 @@ export function Providers({ children }: ProvidersProps) {
           setIsLoading(false)
         }
       } else {
+        // No authenticated user - this is a guest
         setUser(null)
         setUserCity(null)
-        setSelectedCity(null)
-        setIsCityReady(false)
-        setIsLoading(false)
+        
+        // For guests, check if we have a saved city
+        const savedCity = localStorage.getItem('selectedCity')
+        if (savedCity) {
+          setSelectedCity(savedCity)
+          setIsCityReady(true)
+        } else {
+          setIsCityReady(false) // Will show city selection
+        }
+        
+        setIsLoading(false) // Important: Always set loading to false for guests
       }
     } catch (error) {
       console.error('Error fetching user:', error)
@@ -170,16 +183,13 @@ export function Providers({ children }: ProvidersProps) {
           setIsCityReady(true) // City is ready immediately from localStorage
         }
 
-        // Step 2: Fetch user data (this will update city if needed)
+        // Step 2: Fetch user data (this handles both auth users and guests)
         await refreshUser()
         
-        // Step 3: If no saved city but user has city, mark as ready
+        // Step 3: For guests without city, show city selection
         if (!savedCity && mounted) {
-          const cityFromUser = localStorage.getItem('selectedCity')
-          if (cityFromUser) {
-            console.log('📍 City set from user profile:', cityFromUser)
-            setIsCityReady(true)
-          }
+          console.log('📍 No city available - showing city selection')
+          setShowCitySelection(true)
         }
         
         isInitialized = true
@@ -244,7 +254,10 @@ export function Providers({ children }: ProvidersProps) {
     userCity,
     isLoading,
     isCityReady,
+    isGuest: !user, // User is in guest mode if not logged in
+    showCitySelection,
     setSelectedCity: handleSetSelectedCity,
+    setShowCitySelection,
     refreshUser,
   }
 

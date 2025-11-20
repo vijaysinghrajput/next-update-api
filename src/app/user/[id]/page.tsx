@@ -52,7 +52,7 @@ interface Post {
 export default function UserProfilePage() {
   const params = useParams()
   const router = useRouter()
-  const { user: currentUser } = useApp()
+  const { user: currentUser, isGuest } = useApp()
   const queryClient = useQueryClient()
   const userId = params.id as string
   
@@ -434,9 +434,11 @@ export default function UserProfilePage() {
                   >
                     <PostCard 
                       post={post} 
-                      currentUserId={currentUser?.id || ''}
+                      currentUserId={currentUser?.id}
+                      isGuest={isGuest}
                       onUpdate={handlePostUpdate}
                       onDelete={handlePostDelete}
+                      onLoginRequired={() => router.push('/auth/login')}
                     />
                   </motion.div>
                 ))}

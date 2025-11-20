@@ -37,17 +37,14 @@ export default function HomePage() {
     user, 
     selectedCity, 
     isLoading: isUserLoading,
-    isCityReady 
+    isCityReady,
+    isGuest
   } = useApp()
   const router = useRouter()
   const queryClient = useQueryClient()
 
-  // Redirect to auth if not logged in
-  useEffect(() => {
-    if (!isUserLoading && !user) {
-      router.push('/auth/login')
-    }
-  }, [user, isUserLoading, router])
+  // No longer redirect to auth - allow public access
+  // Users can browse content and will be prompted to login only when needed
 
   // Use infinite query for posts - only enabled when city is ready
   const {
@@ -78,22 +75,19 @@ export default function HomePage() {
     queryKey: ['posts', 'infinite', selectedCity, user?.id],
   })
 
-  // Loading state - show spinner while user or city is loading
-  if (isUserLoading || !isCityReady) {
+  // Loading state - show spinner while user authentication is loading
+  // For guests, we only need city to be ready
+  if (isUserLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
         <Spin size="large" />
-        <p className="mt-4 text-gray-600">
-          {!isCityReady ? 'Loading city...' : 'Loading...'}
-        </p>
+        <p className="mt-4 text-gray-600">Loading...</p>
       </div>
     )
   }
 
-  // Not logged in
-  if (!user) {
-    return null
-  }
+  // If city is not ready, the CitySelectionModal will show (handled in layout)
+  // But we can still show the page structure
 
   // No city selected (should not happen but handle gracefully)
   if (!selectedCity) {
@@ -120,9 +114,11 @@ export default function HomePage() {
               <div className="mb-4">
                 <PostCard
                   post={post}
-                  currentUserId={user.id}
+                  currentUserId={user?.id}
+                  isGuest={isGuest}
                   onUpdate={handleUpdatePost}
                   onDelete={handleDeletePost}
+                  onLoginRequired={() => router.push('/auth/login')}
                 />
               </div>
             )}

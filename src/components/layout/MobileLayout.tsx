@@ -12,7 +12,8 @@ import {
   MessageOutlined,
   ShareAltOutlined,
   EnvironmentOutlined,
-  BellOutlined
+  BellOutlined,
+  LogoutOutlined
 } from '@ant-design/icons'
 import { Badge, Avatar, Dropdown, Space, message } from 'antd'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -20,25 +21,55 @@ import { useApp } from '../../lib/providers'
 import { formatNumber } from '../../lib/utils'
 import { supabaseClient } from '../../lib/supabase-client'
 import { getProxiedImageUrl } from '../../lib/r2-storage'
+import CitySelectionModal from '../shared/CitySelectionModal'
 
 interface MobileLayoutProps {
   children: React.ReactNode
 }
 
-const navigationItems = [
-  { key: '/', icon: HomeOutlined, label: 'Home' },
-  { key: '/explore', icon: CompassOutlined, label: 'Explore' },
-  { key: '/create', icon: PlusCircleOutlined, label: 'Create' },
-  { key: '/wallet', icon: WalletOutlined, label: 'Wallet' },
-  { key: '/profile', icon: UserOutlined, label: 'Profile' },
-]
+interface NavigationItem {
+  key: string
+  icon: React.ComponentType<any>
+  label: string
+  onClick?: () => void
+}
 
 export default function MobileLayout({ children }: MobileLayoutProps) {
   const pathname = usePathname()
   const router = useRouter()
-  const { user, selectedCity, userCity, setSelectedCity } = useApp()
+  const { user, selectedCity, userCity, setSelectedCity, isGuest, showCitySelection, setShowCitySelection } = useApp()
   const [showCitySelector, setShowCitySelector] = useState(false)
   const [citiesFromDB, setCitiesFromDB] = useState<Array<{ id: string; name: string }>>([])
+
+  // Dynamic navigation items based on authentication status
+  const navigationItems = isGuest ? [
+    { key: '/', icon: HomeOutlined, label: 'Home' },
+    { key: '/explore', icon: CompassOutlined, label: 'Explore' },
+    { 
+      key: '/auth/login', 
+      icon: UserOutlined, 
+      label: 'Login',
+      onClick: () => handleAuthAction('login')
+    },
+  ] : [
+    { key: '/', icon: HomeOutlined, label: 'Home' },
+    { key: '/explore', icon: CompassOutlined, label: 'Explore' },
+    { key: '/create', icon: PlusCircleOutlined, label: 'Create' },
+    { key: '/wallet', icon: WalletOutlined, label: 'Wallet' },
+    { key: '/profile', icon: UserOutlined, label: 'Profile' },
+  ]
+
+  const handleCitySelect = (city: string) => {
+    setSelectedCity(city)
+    setShowCitySelection(false)
+  }
+
+  const handleAuthAction = (action: string) => {
+    // Redirect to auth with return path
+    const returnPath = pathname !== '/auth/login' && pathname !== '/auth/register' ? pathname : '/'
+    const authPath = action === 'register' ? '/auth/register' : '/auth/login'
+    router.push(`${authPath}?returnTo=${encodeURIComponent(returnPath)}`)
+  }
 
   const handleLogout = async () => {
     try {
@@ -46,9 +77,12 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
     } catch (e) {
       // ignore
     } finally {
-      try { localStorage.removeItem('selectedCity') } catch {}
+      try { 
+        // Keep selected city when logging out
+        // localStorage.removeItem('selectedCity') 
+      } catch {}
       message.success('Logged out')
-      router.replace('/auth/login')
+      // Stay on current page instead of redirecting
     }
   }
 
@@ -69,6 +103,16 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
     fetchCities()
   }, [])
 
+  // Route protection for guest users
+  useEffect(() => {
+    const protectedRoutes = ['/create', '/wallet', '/profile']
+    
+    if (isGuest && protectedRoutes.includes(pathname)) {
+      message.info('Please login to access this feature')
+      handleAuthAction('login')
+    }
+  }, [pathname, isGuest])
+
   // Don't show layout for auth pages, admin pages, terms, or privacy pages
   if (pathname.startsWith('/auth') || pathname.startsWith('/admin') || pathname.startsWith('/terms') || pathname.startsWith('/privacy')) {
     return <>{children}</>
@@ -83,15 +127,56 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
     onClick: () => setSelectedCity(city)
   }))
 
-  const profileItems = [
+  const profileItems = isGuest ? [
+    {
+      key: 'login',
+      label: (
+        <div className="flex items-center space-x-2">
+          <UserOutlined className="text-blue-500" />
+          <span className="font-medium">Login</span>
+        </div>
+      ),
+      onClick: () => handleAuthAction('login')
+    },
+    {
+      key: 'register',
+      label: (
+        <div className="flex items-center space-x-2">
+          <PlusCircleOutlined className="text-green-500" />
+          <span className="font-medium">Sign Up</span>
+        </div>
+      ),
+      onClick: () => handleAuthAction('register')
+    }
+  ] : [
     {
       key: 'profile',
-      label: 'My Profile',
+      label: (
+        <div className="flex items-center space-x-2">
+          <UserOutlined />
+          <span>My Profile</span>
+        </div>
+      ),
       onClick: () => router.push('/profile')
     },
     {
+      key: 'wallet',
+      label: (
+        <div className="flex items-center space-x-2">
+          <WalletOutlined />
+          <span>My Wallet</span>
+        </div>
+      ),
+      onClick: () => router.push('/wallet')
+    },
+    {
       key: 'logout',
-      label: 'Logout',
+      label: (
+        <div className="flex items-center space-x-2">
+          <LogoutOutlined />
+          <span>Logout</span>
+        </div>
+      ),
       onClick: handleLogout
     }
   ]
@@ -136,11 +221,6 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
 
           {/* Right Side */}
           <div className="flex items-center space-x-3">
-            {/* Notifications */}
-            <Badge count={5} size="small">
-              <BellOutlined className="text-xl text-gray-600 cursor-pointer hover:text-primary transition-colors" />
-            </Badge>
-
             {/* Profile */}
             <Dropdown 
               menu={{ items: profileItems }}
@@ -148,13 +228,20 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
               placement="bottomRight"
             >
               <div className="flex items-center cursor-pointer">
-                <Avatar 
-                  src={getProxiedImageUrl(user?.avatar_url)}
-                  size={32}
-                  className="border-2 border-primary"
-                >
-                  {user?.name?.[0]?.toUpperCase()}
-                </Avatar>
+                {isGuest ? (
+                  <div className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-3 py-2 rounded-full">
+                    <UserOutlined className="text-sm" />
+                    <span className="text-sm font-medium">Login</span>
+                  </div>
+                ) : (
+                  <Avatar 
+                    src={getProxiedImageUrl(user?.avatar_url)}
+                    size={32}
+                    className="border-2 border-primary"
+                  >
+                    {user?.name?.[0]?.toUpperCase()}
+                  </Avatar>
+                )}
               </div>
             </Dropdown>
           </div>
@@ -194,7 +281,13 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
             return (
               <motion.button
                 key={item.key}
-                onClick={() => router.push(item.key)}
+                onClick={() => {
+                  if (item.onClick) {
+                    item.onClick()
+                  } else {
+                    router.push(item.key)
+                  }
+                }}
                 className={`flex flex-col items-center justify-center px-4 py-2 rounded-2xl min-w-[64px] transition-all duration-200 relative ${
                   isActive 
                     ? 'bg-gradient-to-br from-blue-600 to-indigo-500 text-white shadow-md shadow-blue-200/60 ring-1 ring-blue-500/40' 
@@ -210,6 +303,19 @@ export default function MobileLayout({ children }: MobileLayoutProps) {
           })}
         </div>
       </motion.nav>
+
+      {/* City Selection Modal for Guest Users */}
+      <CitySelectionModal
+        open={showCitySelection}
+        onCitySelect={handleCitySelect}
+        onClose={() => setShowCitySelection(false)}
+        showSkip={true}
+        title={isGuest ? "Welcome to Next Update!" : "Select Your City"}
+        description={isGuest 
+          ? "Choose your city to see local news and connect with your community"
+          : "Change your city to see different local content"
+        }
+      />
     </div>
   )
 }

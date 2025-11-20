@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import { Input, Tabs, Card, Avatar, Button, Typography, Space, Empty, Spin, message } from 'antd'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { 
   SearchOutlined, 
   FireOutlined, 
@@ -55,7 +56,8 @@ interface SuggestedUser {
 }
 
 export default function ExplorePage() {
-  const { user, selectedCity, isLoading: isUserLoading } = useApp()
+  const { user, selectedCity, isLoading: isUserLoading, isGuest } = useApp()
+  const router = useRouter()
   const queryClient = useQueryClient()
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState('trending')
@@ -64,7 +66,7 @@ export default function ExplorePage() {
   const { data: trendingPosts = [], isLoading: loadingPosts } = useQuery({
     queryKey: ['trending-posts', selectedCity, user?.id],
     queryFn: async () => {
-      if (!selectedCity || !user) return []
+      if (!selectedCity) return []
 
       const { data: cityData } = await supabaseClient
         .from('cities')
@@ -97,45 +99,54 @@ export default function ExplorePage() {
 
       if (!postsData || postsData.length === 0) return []
 
-      const postIds = postsData.map(p => p.id)
-      const userIds = postsData.map(p => p.user_id)
-      
-      // Get likes
-      const { data: likesData } = await supabaseClient
-        .from('post_likes')
-        .select('post_id')
-        .eq('user_id', user.id)
-        .in('post_id', postIds)
+      // For authenticated users, get likes and follows
+      if (user) {
+        const postIds = postsData.map(p => p.id)
+        const userIds = postsData.map(p => p.user_id)
+        
+        // Get likes
+        const { data: likesData } = await supabaseClient
+          .from('post_likes')
+          .select('post_id')
+          .eq('user_id', user.id)
+          .in('post_id', postIds)
 
-      const likedPostIds = new Set(likesData?.map(l => l.post_id) || [])
-      
-      // Get follow status
-      const { data: followsData } = await supabaseClient
-        .from('follows')
-        .select('following_id')
-        .eq('follower_id', user.id)
-        .in('following_id', userIds)
-      
-      const followingUserIds = new Set(followsData?.map(f => f.following_id) || [])
+        const likedPostIds = new Set(likesData?.map(l => l.post_id) || [])
+        
+        // Get follow status
+        const { data: followsData } = await supabaseClient
+          .from('follows')
+          .select('following_id')
+          .eq('follower_id', user.id)
+          .in('following_id', userIds)
+        
+        const followingUserIds = new Set(followsData?.map(f => f.following_id) || [])
 
-      return postsData.map(post => ({
-        ...post,
-        is_liked: likedPostIds.has(post.id),
-        is_following: followingUserIds.has(post.user_id)
-      }))
+        return postsData.map(post => ({
+          ...post,
+          is_liked: likedPostIds.has(post.id),
+          is_following: followingUserIds.has(post.user_id)
+        }))
+      } else {
+        // For guest users, set default values
+        return postsData.map(post => ({
+          ...post,
+          is_liked: false,
+          is_following: false
+        }))
+      }
     },
-    enabled: !!user && !!selectedCity && !isUserLoading,
+    enabled: !!selectedCity && !isUserLoading, // Only require city, works for both guest and authenticated users
     staleTime: 5 * 60 * 1000,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
   })
 
-  // Fetch suggested users with React Query
+  // Fetch suggested users with React Query (only for authenticated users)
   const { data: suggestedUsers = [], isLoading: loadingUsers } = useQuery({
     queryKey: ['suggested-users', selectedCity, user?.id],
     queryFn: async () => {
       if (!selectedCity || !user) {
-        console.log('❌ Missing requirements:', { selectedCity, userId: user?.id })
         return []
       }
 
@@ -280,7 +291,8 @@ export default function ExplorePage() {
                 </Space>
               ),
             },
-            {
+            // Only show People tab for authenticated users
+            ...(user ? [{
               key: 'people',
               label: (
                 <Space>
@@ -288,7 +300,7 @@ export default function ExplorePage() {
                   <span>People</span>
                 </Space>
               ),
-            },
+            }] : [])
           ]}
         />
       </div>
@@ -312,11 +324,13 @@ export default function ExplorePage() {
                 >
                   <PostCard
                     post={post}
-                    currentUserId={user?.id || ''}
+                    currentUserId={user?.id}
+                    isGuest={isGuest}
                     onUpdate={() => queryClient.invalidateQueries({ queryKey: ['trending-posts'] })}
                     onDelete={() => {
                       queryClient.invalidateQueries({ queryKey: ['trending-posts'] })
                     }}
+                    onLoginRequired={() => router.push('/auth/login')}
                   />
                 </motion.div>
               ))}

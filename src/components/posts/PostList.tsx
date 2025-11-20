@@ -6,10 +6,12 @@ import PostCard, { PostWithAuthor } from './PostCard'
 
 interface PostListProps {
   posts: PostWithAuthor[]
-  currentUserId: string
+  currentUserId?: string // Made optional for guest users
+  isGuest?: boolean
   isLoading?: boolean
   onUpdate?: (post: PostWithAuthor) => void
   onDelete?: (postId: string) => void
+  onLoginRequired?: () => void
   emptyState?: React.ReactNode
   className?: string
 }
@@ -17,9 +19,11 @@ interface PostListProps {
 export function PostList({
   posts,
   currentUserId,
+  isGuest = false,
   isLoading = false,
   onUpdate,
   onDelete,
+  onLoginRequired,
   emptyState,
   className,
 }: PostListProps) {
@@ -52,8 +56,10 @@ export function PostList({
           key={post.id}
           post={post}
           currentUserId={currentUserId}
+          isGuest={isGuest}
           onUpdate={onUpdate}
           onDelete={onDelete}
+          onLoginRequired={onLoginRequired}
         />
       ))}
     </div>

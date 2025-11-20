@@ -33,8 +33,8 @@ export function useInfinitePosts(cityId: string | null, userId: string | null) {
       const queryKey = `posts-infinite-${cityId}`
       debugLogger.queryFetch(queryKey, pageParam)
 
-      if (!cityId || !userId) {
-        console.log('⏭️ Skipping posts fetch - no city or user')
+      if (!cityId) {
+        console.log('⏭️ Skipping posts fetch - no city selected')
         return { data: [], nextPage: null, hasMore: false }
       }
 
@@ -79,7 +79,8 @@ export function useInfinitePosts(cityId: string | null, userId: string | null) {
         debugLogger.querySuccess(queryKey, postsData?.length || 0, pageParam)
 
         // Check which posts are liked by current user and follow status
-        if (postsData && postsData.length > 0) {
+        // Skip this for guest users (userId is null)
+        if (postsData && postsData.length > 0 && userId) {
           const postIds = postsData.map(p => p.id)
           const userIds = postsData.map(p => p.user_id)
           
@@ -105,6 +106,12 @@ export function useInfinitePosts(cityId: string | null, userId: string | null) {
             post.is_liked = likedPostIds.has(post.id)
             post.is_following = followingUserIds.has(post.user_id)
           })
+        } else if (postsData && postsData.length > 0) {
+          // For guest users, set default values
+          postsData.forEach(post => {
+            post.is_liked = false
+            post.is_following = false
+          })
         }
 
         const hasMore = postsData.length === PAGE_SIZE
@@ -121,7 +128,7 @@ export function useInfinitePosts(cityId: string | null, userId: string | null) {
     },
     getNextPageParam: (lastPage) => lastPage.nextPage,
     initialPageParam: 0,
-    enabled: !!cityId && !!userId,
+    enabled: !!cityId, // Only require city - works for both guest and authenticated users
     staleTime: 5 * 60 * 1000, // 5 minutes - data stays fresh longer
     gcTime: 15 * 60 * 1000, // 15 minutes - keep in cache longer
     refetchOnWindowFocus: false, // ❌ Don't refetch on window focus
@@ -134,7 +141,7 @@ export function useInfiniteTrendingPosts(cityId: string | null, userId: string |
   return useInfiniteQuery({
     queryKey: ['posts', 'trending', 'infinite', cityId, userId],
     queryFn: async ({ pageParam = 0 }) => {
-      if (!cityId || !userId) return { data: [], nextPage: null, hasMore: false }
+      if (!cityId) return { data: [], nextPage: null, hasMore: false }
 
       const { data: cityData } = await supabaseClient
         .from('cities')
@@ -165,7 +172,7 @@ export function useInfiniteTrendingPosts(cityId: string | null, userId: string |
         .order('likes_count', { ascending: false })
         .range(pageParam * PAGE_SIZE, (pageParam + 1) * PAGE_SIZE - 1)
 
-      if (postsData && postsData.length > 0) {
+      if (postsData && postsData.length > 0 && userId) {
         const postIds = postsData.map(p => p.id)
         const userIds = postsData.map(p => p.user_id)
         
@@ -191,6 +198,12 @@ export function useInfiniteTrendingPosts(cityId: string | null, userId: string |
           post.is_liked = likedPostIds.has(post.id)
           post.is_following = followingUserIds.has(post.user_id)
         })
+      } else if (postsData && postsData.length > 0) {
+        // For guest users, set default values
+        postsData.forEach(post => {
+          post.is_liked = false
+          post.is_following = false
+        })
       }
 
       const hasMore = postsData?.length === PAGE_SIZE
@@ -203,7 +216,7 @@ export function useInfiniteTrendingPosts(cityId: string | null, userId: string |
     },
     getNextPageParam: (lastPage) => lastPage.nextPage,
     initialPageParam: 0,
-    enabled: !!cityId && !!userId,
+    enabled: !!cityId, // Only require city - works for both guest and authenticated users
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 15 * 60 * 1000, // 15 minutes
     refetchOnWindowFocus: false, // ❌ Don't refetch on window focus

@@ -68,12 +68,14 @@ export interface PostWithAuthor {
 
 interface PostCardProps {
   post: PostWithAuthor
-  currentUserId: string
+  currentUserId?: string // Make optional for guest users
+  isGuest?: boolean // Add guest mode indicator
   onUpdate?: (post: PostWithAuthor) => void
   onDelete?: (postId: string) => void
+  onLoginRequired?: () => void // Callback when login is needed
 }
 
-export default function PostCard({ post, currentUserId, onUpdate, onDelete }: PostCardProps) {
+export default function PostCard({ post, currentUserId, isGuest = false, onUpdate, onDelete, onLoginRequired }: PostCardProps) {
   const [isLiked, setIsLiked] = useState(post.is_liked || false)
   const [likesCount, setLikesCount] = useState(post.likes_count)
   const [commentsCount, setCommentsCount] = useState(post.comments_count)
@@ -166,6 +168,12 @@ export default function PostCard({ post, currentUserId, onUpdate, onDelete }: Po
   }
 
   const handleLike = async () => {
+    // Check if guest user
+    if (isGuest || !currentUserId) {
+      onLoginRequired?.()
+      return
+    }
+    
     if (loadingLike) return
 
     setLoadingLike(true)
@@ -294,6 +302,12 @@ export default function PostCard({ post, currentUserId, onUpdate, onDelete }: Po
   const isOwner = post.user_id === currentUserId
 
   const handleComment = async () => {
+    // Check if guest user
+    if (isGuest || !currentUserId) {
+      onLoginRequired?.()
+      return
+    }
+    
     if (!comment.trim() || loadingComment) return
 
     setLoadingComment(true)
@@ -372,16 +386,18 @@ export default function PostCard({ post, currentUserId, onUpdate, onDelete }: Po
         image: post.media_urls[0] // First media as image
       })
 
-      // Always use native_share since we're in WebView
-      const { error } = await socialActions.sharePost(post.id, currentUserId, {
-        channel: 'native_share',
-        metadata: {
-          postOwner: post.profiles.id,
-        },
-      })
+      // Track share analytics only for authenticated users
+      if (currentUserId) {
+        const { error } = await socialActions.sharePost(post.id, currentUserId, {
+          channel: 'native_share',
+          metadata: {
+            postOwner: post.profiles.id,
+          },
+        })
 
-      if (error) {
-        throw error
+        if (error) {
+          throw error
+        }
       }
 
       setSharesCount(prev => {
@@ -402,6 +418,12 @@ export default function PostCard({ post, currentUserId, onUpdate, onDelete }: Po
   }
 
   const handleFollowToggle = async () => {
+    // Check if guest user
+    if (isGuest || !currentUserId) {
+      onLoginRequired?.()
+      return
+    }
+    
     if (post.user_id === currentUserId) return // Can't follow yourself
     
     setFollowLoading(true)
@@ -719,31 +741,43 @@ export default function PostCard({ post, currentUserId, onUpdate, onDelete }: Po
 
         {/* Comment Input - Fixed at bottom */}
         <div className="sticky bottom-0 bg-white border-t border-gray-200 p-3">
-          <div className="flex items-center space-x-2">
-            <AntAvatar size={32} src={getProxiedImageUrl(post.profiles.avatar_url)}>
-              {post.profiles.name[0]?.toUpperCase()}
-            </AntAvatar>
-            <div className="flex-1 flex items-center space-x-2">
-              <Input
-                placeholder="Add a comment..."
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                onPressEnter={handleComment}
-                className="rounded-full border-gray-300 text-sm"
-                size="middle"
-                maxLength={500}
-              />
-              <Button
-                type="primary"
-                icon={<SendOutlined />}
-                onClick={handleComment}
-                loading={loadingComment}
-                disabled={!comment.trim()}
-                size="middle"
+          {isGuest || !currentUserId ? (
+            <div className="flex items-center justify-center py-4">
+              <Button 
+                type="primary" 
+                onClick={onLoginRequired}
                 className="rounded-full"
-              />
+              >
+                Login to comment
+              </Button>
             </div>
-          </div>
+          ) : (
+            <div className="flex items-center space-x-2">
+              <AntAvatar size={32} src={getProxiedImageUrl(post.profiles.avatar_url)}>
+                {post.profiles.name[0]?.toUpperCase()}
+              </AntAvatar>
+              <div className="flex-1 flex items-center space-x-2">
+                <Input
+                  placeholder="Add a comment..."
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  onPressEnter={handleComment}
+                  className="rounded-full border-gray-300 text-sm"
+                  size="middle"
+                  maxLength={500}
+                />
+                <Button
+                  type="primary"
+                  icon={<SendOutlined />}
+                  onClick={handleComment}
+                  loading={loadingComment}
+                  disabled={!comment.trim()}
+                  size="middle"
+                  className="rounded-full"
+                />
+              </div>
+            </div>
+          )}
         </div>
       </Modal>
     </motion.div>

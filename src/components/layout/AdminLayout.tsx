@@ -35,12 +35,17 @@ const menuItems = [
   {
     key: '/admin/users',
     icon: <UserOutlined />,
-    label: 'Users',
+    label: 'Users Management',
+  },
+  {
+    key: '/admin/cities',
+    icon: <SettingOutlined />,
+    label: 'Cities Management',
   },
   {
     key: '/admin/posts',
     icon: <FileTextOutlined />,
-    label: 'Posts',
+    label: 'Posts Management',
   },
   {
     key: '/admin/kyc',

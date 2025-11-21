@@ -1,111 +1,126 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Card, Table, Button, Space, Typography, Avatar, Tabs, Modal, Form, InputNumber, Input, message, Select } from 'antd'
 import { 
-  CrownOutlined,
+  Card, 
+  Row, 
+  Col, 
+  Statistic, 
+  Typography, 
+  Space, 
+  Button, 
+  List, 
+  Avatar, 
+  Tag, 
+  Progress,
+  Divider
+} from 'antd'
+import { 
+  UserOutlined,
+  FileTextOutlined,
+  EnvironmentOutlined,
+  SafetyCertificateOutlined,
+  WalletOutlined,
+  EyeOutlined,
+  ArrowRightOutlined,
   CheckCircleOutlined,
-  CloseCircleOutlined
+  ClockCircleOutlined,
+  ExclamationCircleOutlined
 } from '@ant-design/icons'
 import { motion } from 'framer-motion'
+import { useRouter } from 'next/navigation'
 import { supabaseClient } from '../../lib/supabase-client'
 import { formatNumber, formatRelativeTime } from '../../lib/utils'
-import AdminStats from './AdminStats'
-import { getProxiedImageUrl } from '../../lib/r2-storage'
 
 const { Title, Text } = Typography
-// Removed deprecated TabPane import
-const { Option } = Select
 
-interface ProfileRow {
-  id: string
-  name: string
-  email: string
-  avatar_url: string | null
-  is_verified: boolean
-  has_blue_tick: boolean
-  points_balance: number
-  created_at: string
+interface DashboardStats {
+  total_users: number
+  total_posts: number
+  total_cities: number
+  active_cities: number
+  pending_kyc: number
+  pending_payments: number
+  total_points_distributed: number
+  engagement_rate: number
 }
 
-interface PostRow {
+interface RecentActivity {
   id: string
-  user_id: string
-  caption: string | null
-  media_urls: string[]
+  type: 'user_registration' | 'post_created' | 'kyc_submitted' | 'payment_requested'
+  user_name: string
+  user_avatar?: string
+  description: string
   created_at: string
-  profiles?: { name?: string; avatar_url?: string | null }
-}
-
-interface KycRow {
-  id: string
-  user_id: string
-  status: 'pending' | 'verified' | 'rejected'
-  rejection_reason: string | null
-  created_at: string
-  profiles?: { name?: string; avatar_url?: string | null }
-}
-
-interface PaymentRequestRow {
-  id: string
-  user_id: string
-  amount: number
-  status: 'pending' | 'approved' | 'rejected'
-  admin_notes: string | null
-  created_at: string
-  profiles?: { name?: string; avatar_url?: string | null }
+  status?: string
 }
 
 export default function AdminDashboard() {
-  const [users, setUsers] = useState<ProfileRow[]>([])
-  const [posts, setPosts] = useState<PostRow[]>([])
-  const [kycSubmissions, setKycSubmissions] = useState<KycRow[]>([])
-  const [paymentRequests, setPaymentRequests] = useState<PaymentRequestRow[]>([])
+  const router = useRouter()
   const [loading, setLoading] = useState(true)
-  const [showPointsModal, setShowPointsModal] = useState(false)
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
-  const [pointsForm] = Form.useForm()
+  const [stats, setStats] = useState<DashboardStats>({
+    total_users: 0,
+    total_posts: 0,
+    total_cities: 0,
+    active_cities: 0,
+    pending_kyc: 0,
+    pending_payments: 0,
+    total_points_distributed: 0,
+    engagement_rate: 0
+  })
+  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
 
   useEffect(() => {
     fetchDashboardData()
   }, [])
 
-  useEffect(() => {
-    const onFocus = () => fetchDashboardData()
-    const onVisible = () => { if (document.visibilityState === 'visible') fetchDashboardData() }
-    window.addEventListener('focus', onFocus)
-    document.addEventListener('visibilitychange', onVisible)
-    return () => {
-      window.removeEventListener('focus', onFocus)
-      document.removeEventListener('visibilitychange', onVisible)
-    }
-  }, [])
-
   const fetchDashboardData = async () => {
     setLoading(true)
     try {
-
-      // Fetch recent data
-      const [recentUsers, recentPosts, pendingKyc, pendingPayments] = await Promise.all([
-        supabaseClient.from('profiles').select('*').order('created_at', { ascending: false }).limit(10),
-        supabaseClient.from('posts').select(`
-          *,
-          profiles:user_id (name, avatar_url)
-        `).eq('is_active', true).order('created_at', { ascending: false }).limit(10),
-        supabaseClient.from('kyc_submissions').select(`
-          *,
-          profiles:user_id (name, avatar_url)
-        `).eq('status', 'pending').order('created_at', { ascending: false }),
-        supabaseClient.from('payment_requests').select(`
-          *,
-          profiles:user_id (name, avatar_url)
-        `).eq('status', 'pending').order('created_at', { ascending: false })
+      // Fetch comprehensive dashboard statistics
+      const [
+        usersResult,
+        postsResult,
+        citiesResult,
+        kycResult,
+        paymentsResult,
+        pointsResult
+      ] = await Promise.all([
+        supabaseClient.from('profiles').select('id', { count: 'exact' }),
+        supabaseClient.from('posts').select('id', { count: 'exact' }).eq('is_active', true),
+        supabaseClient.from('cities').select('id, is_active', { count: 'exact' }),
+        supabaseClient.from('kyc_submissions').select('id', { count: 'exact' }).eq('status', 'pending'),
+        supabaseClient.from('payment_requests').select('id', { count: 'exact' }).eq('status', 'pending'),
+        supabaseClient.from('points_transactions').select('amount').eq('type', 'earned')
       ])
 
-      setUsers((recentUsers.data as ProfileRow[]) || [])
-      setPosts((recentPosts.data as PostRow[]) || [])
-      setKycSubmissions((pendingKyc.data as KycRow[]) || [])
-      setPaymentRequests((pendingPayments.data as PaymentRequestRow[]) || [])
+      // Calculate stats
+      const totalUsers = usersResult.count || 0
+      const totalPosts = postsResult.count || 0
+      const allCities = citiesResult.data || []
+      const totalCities = allCities.length
+      const activeCities = allCities.filter(c => c.is_active).length
+      const pendingKyc = kycResult.count || 0
+      const pendingPayments = paymentsResult.count || 0
+      const totalPoints = pointsResult.data?.reduce((sum, t) => sum + t.amount, 0) || 0
+      
+      // Calculate engagement rate (posts per user)
+      const engagementRate = totalUsers > 0 ? Math.round((totalPosts / totalUsers) * 100) / 100 : 0
+
+      setStats({
+        total_users: totalUsers,
+        total_posts: totalPosts,
+        total_cities: totalCities,
+        active_cities: activeCities,
+        pending_kyc: pendingKyc,
+        pending_payments: pendingPayments,
+        total_points_distributed: totalPoints,
+        engagement_rate: engagementRate
+      })
+
+      // Fetch recent activities
+      await fetchRecentActivity()
+
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
     } finally {
@@ -113,382 +128,335 @@ export default function AdminDashboard() {
     }
   }
 
-  const handleKycAction = async (id: string, status: 'verified' | 'rejected', reason?: string) => {
+  const fetchRecentActivity = async () => {
     try {
-      const { error } = await supabaseClient
+      // Get recent user registrations
+      const { data: newUsers } = await supabaseClient
+        .from('profiles')
+        .select('id, name, avatar_url, created_at')
+        .order('created_at', { ascending: false })
+        .limit(5)
+
+      // Get recent posts
+      const { data: newPosts } = await supabaseClient
+        .from('posts')
+        .select('id, created_at, profiles:user_id(name, avatar_url)')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(5)
+
+      // Get recent KYC submissions
+      const { data: newKyc } = await supabaseClient
         .from('kyc_submissions')
-        .update({
-          status,
-          rejection_reason: reason || null,
-          verified_by: 'admin', // In real app, use current admin ID
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', id)
+        .select('id, status, created_at, profiles:user_id(name, avatar_url)')
+        .order('created_at', { ascending: false })
+        .limit(5)
 
-      if (error) throw error
-
-      // If verified, update profile
-      if (status === 'verified') {
-        const submission = kycSubmissions.find((s) => s.id === id)
-        if (submission) {
-          await supabaseClient
-            .from('profiles')
-            .update({ is_verified: true })
-            .eq('id', submission.user_id)
-        }
-      }
-
-      message.success(`KYC ${status} successfully`)
-      fetchDashboardData()
-    } catch (error) {
-      message.error('Failed to update KYC status')
-    }
-  }
-
-  const handlePaymentAction = async (id: string, status: 'approved' | 'rejected', notes?: string) => {
-    try {
-      const request = paymentRequests.find((r) => r.id === id)
-      if (!request) return
-
-      const { error } = await supabaseClient
+      // Get recent payment requests
+      const { data: newPayments } = await supabaseClient
         .from('payment_requests')
-        .update({
-          status,
-          admin_notes: notes || null,
-          processed_by: 'admin', // In real app, use current admin ID
-          updated_at: new Date().toISOString()
+        .select('id, amount, status, created_at, profiles:user_id(name, avatar_url)')
+        .order('created_at', { ascending: false })
+        .limit(5)
+
+      // Combine and format activities
+      const activities: RecentActivity[] = []
+
+      newUsers?.forEach(user => {
+        activities.push({
+          id: `user-${user.id}`,
+          type: 'user_registration',
+          user_name: user.name,
+          user_avatar: user.avatar_url,
+          description: 'New user registered',
+          created_at: user.created_at
         })
-        .eq('id', id)
-
-      if (error) throw error
-
-      // If approved, add points
-      if (status === 'approved') {
-        await supabaseClient.from('points_transactions').insert({
-          user_id: request.user_id,
-          type: 'admin_credit',
-          amount: request.amount,
-          description: `Manual purchase approved - ${request.amount} points`,
-          reference_id: id
-        })
-
-        // Update profile balance by fetching current and writing new value
-        const { data: profile } = await supabaseClient
-          .from('profiles')
-          .select('points_balance')
-          .eq('id', request.user_id)
-          .single()
-
-        const current = (profile?.points_balance as number | undefined) ?? 0
-        await supabaseClient
-          .from('profiles')
-          .update({ points_balance: current + request.amount })
-          .eq('id', request.user_id)
-      }
-
-      message.success(`Payment ${status} successfully`)
-      fetchDashboardData()
-    } catch (error) {
-      message.error('Failed to update payment status')
-    }
-  }
-
-  const handlePointsUpdate = async (values: any) => {
-    if (!selectedUserId) return
-
-    try {
-      const { error } = await supabaseClient.from('points_transactions').insert({
-        user_id: selectedUserId,
-        type: values.type,
-        amount: values.type === 'admin_debit' ? -Math.abs(values.amount) : values.amount,
-        description: values.description
       })
 
-      if (error) throw error
+      newPosts?.forEach(post => {
+        const profile = Array.isArray(post.profiles) ? post.profiles[0] : post.profiles
+        activities.push({
+          id: `post-${post.id}`,
+          type: 'post_created',
+          user_name: profile?.name || 'Unknown',
+          user_avatar: profile?.avatar_url,
+          description: 'Created a new post',
+          created_at: post.created_at
+        })
+      })
 
-      // Update profile balance by fetching current and writing new value
-      const { data: profile } = await supabaseClient
-        .from('profiles')
-        .select('points_balance')
-        .eq('id', selectedUserId)
-        .single()
+      newKyc?.forEach(kyc => {
+        const profile = Array.isArray(kyc.profiles) ? kyc.profiles[0] : kyc.profiles
+        activities.push({
+          id: `kyc-${kyc.id}`,
+          type: 'kyc_submitted',
+          user_name: profile?.name || 'Unknown',
+          user_avatar: profile?.avatar_url,
+          description: 'Submitted KYC documents',
+          created_at: kyc.created_at,
+          status: kyc.status
+        })
+      })
 
-      const delta: number = values.type === 'admin_debit' ? -Math.abs(values.amount) : Math.abs(values.amount)
-      const current = (profile?.points_balance as number | undefined) ?? 0
+      newPayments?.forEach(payment => {
+        const profile = Array.isArray(payment.profiles) ? payment.profiles[0] : payment.profiles
+        activities.push({
+          id: `payment-${payment.id}`,
+          type: 'payment_requested',
+          user_name: profile?.name || 'Unknown',
+          user_avatar: profile?.avatar_url,
+          description: `Requested ₹${formatNumber(payment.amount)} withdrawal`,
+          created_at: payment.created_at,
+          status: payment.status
+        })
+      })
 
-      await supabaseClient
-        .from('profiles')
-        .update({ points_balance: current + delta })
-        .eq('id', selectedUserId)
+      // Sort by date and take recent 10
+      activities.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      setRecentActivity(activities.slice(0, 10))
 
-      message.success('Points updated successfully')
-      setShowPointsModal(false)
-      pointsForm.resetFields()
-      fetchDashboardData()
     } catch (error) {
-      message.error('Failed to update points')
+      console.error('Error fetching recent activity:', error)
     }
   }
 
-  const userColumns = [
-    {
-      title: 'User',
-      key: 'user',
-      render: (record: ProfileRow) => (
-        <div className="flex items-center space-x-2">
-          <Avatar src={getProxiedImageUrl(record.avatar_url) || undefined} size="small">
-            {record.name?.[0]?.toUpperCase()}
-          </Avatar>
-          <div>
-            <div className="flex items-center space-x-1">
-              <Text strong>{record.name}</Text>
-              {record.is_verified && <CheckCircleOutlined className="text-green-500" />}
-              {record.has_blue_tick && <CrownOutlined className="text-yellow-500" />}
-            </div>
-            <Text type="secondary" className="text-xs">{record.email}</Text>
-          </div>
-        </div>
-      )
-    },
-    {
-      title: 'Points',
-      dataIndex: 'points_balance',
-      render: (points: number) => formatNumber(points)
-    },
-    {
-      title: 'Joined',
-      dataIndex: 'created_at',
-      render: (date: string) => formatRelativeTime(date)
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      render: (record: ProfileRow) => (
-        <Button
-          size="small"
-          onClick={() => {
-            setSelectedUserId(record.id)
-            setShowPointsModal(true)
-          }}
-        >
-          Manage Points
-        </Button>
-      )
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case 'user_registration': return <UserOutlined style={{ color: '#52c41a' }} />
+      case 'post_created': return <FileTextOutlined style={{ color: '#1890ff' }} />
+      case 'kyc_submitted': return <SafetyCertificateOutlined style={{ color: '#faad14' }} />
+      case 'payment_requested': return <WalletOutlined style={{ color: '#722ed1' }} />
+      default: return <EyeOutlined />
     }
-  ]
+  }
 
-  const kycColumns = [
-    {
-      title: 'User',
-      key: 'user',
-      render: (record: KycRow) => (
-        <div className="flex items-center space-x-2">
-          <Avatar src={getProxiedImageUrl(record.profiles?.avatar_url) || undefined} size="small">
-            {record.profiles?.name?.[0]?.toUpperCase()}
-          </Avatar>
-          <Text strong>{record.profiles?.name}</Text>
-        </div>
-      )
-    },
-    {
-      title: 'Submitted',
-      dataIndex: 'created_at',
-      render: (date: string) => formatRelativeTime(date)
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      render: (record: KycRow) => (
-        <Space>
-          <Button
-            size="small"
-            type="primary"
-            icon={<CheckCircleOutlined />}
-            onClick={() => handleKycAction(record.id, 'verified')}
-          >
-            Approve
-          </Button>
-          <Button
-            size="small"
-            danger
-            icon={<CloseCircleOutlined />}
-            onClick={() => handleKycAction(record.id, 'rejected', 'Invalid documents')}
-          >
-            Reject
-          </Button>
-        </Space>
-      )
+  const getStatusColor = (status?: string) => {
+    switch (status) {
+      case 'pending': return 'orange'
+      case 'approved': case 'verified': return 'green'
+      case 'rejected': return 'red'
+      default: return 'default'
     }
-  ]
-
-  const paymentColumns = [
-    {
-      title: 'User',
-      key: 'user',
-      render: (record: PaymentRequestRow) => (
-        <div className="flex items-center space-x-2">
-          <Avatar src={getProxiedImageUrl(record.profiles?.avatar_url) || undefined} size="small">
-            {record.profiles?.name?.[0]?.toUpperCase()}
-          </Avatar>
-          <Text strong>{record.profiles?.name}</Text>
-        </div>
-      )
-    },
-    {
-      title: 'Amount',
-      dataIndex: 'amount',
-      render: (amount: number) => `${formatNumber(amount)} points`
-    },
-    {
-      title: 'Requested',
-      dataIndex: 'created_at',
-      render: (date: string) => formatRelativeTime(date)
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      render: (record: PaymentRequestRow) => (
-        <Space>
-          <Button
-            size="small"
-            type="primary"
-            icon={<CheckCircleOutlined />}
-            onClick={() => handlePaymentAction(record.id, 'approved')}
-          >
-            Approve
-          </Button>
-          <Button
-            size="small"
-            danger
-            icon={<CloseCircleOutlined />}
-            onClick={() => handlePaymentAction(record.id, 'rejected', 'Invalid payment proof')}
-          >
-            Reject
-          </Button>
-        </Space>
-      )
-    }
-  ]
+  }
 
   return (
-    <div className="space-y-8">
-      {/* Statistics Overview */}
-      <div className="flex items-center justify-between">
-        <AdminStats />
-        <Button onClick={fetchDashboardData}>Refresh</Button>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <div className="p-6">
+        <Title level={2} className="mb-6">Admin Dashboard</Title>
+
+        {/* Main Statistics */}
+        <Row gutter={[16, 16]} className="mb-8">
+          <Col xs={24} sm={12} lg={6}>
+            <Card>
+              <Statistic
+                title="Total Users"
+                value={stats.total_users}
+                prefix={<UserOutlined />}
+                loading={loading}
+              />
+              <Progress 
+                percent={Math.min((stats.total_users / 1000) * 100, 100)} 
+                showInfo={false}
+                size="small"
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} lg={6}>
+            <Card>
+              <Statistic
+                title="Total Posts"
+                value={stats.total_posts}
+                prefix={<FileTextOutlined />}
+                loading={loading}
+              />
+              <Progress 
+                percent={Math.min((stats.total_posts / 500) * 100, 100)} 
+                showInfo={false}
+                size="small"
+                strokeColor="#1890ff"
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} lg={6}>
+            <Card>
+              <Statistic
+                title="Active Cities"
+                value={stats.active_cities}
+                suffix={`/ ${stats.total_cities}`}
+                prefix={<EnvironmentOutlined />}
+                loading={loading}
+              />
+              <Progress 
+                percent={stats.total_cities > 0 ? (stats.active_cities / stats.total_cities) * 100 : 0} 
+                showInfo={false}
+                size="small"
+                strokeColor="#52c41a"
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} lg={6}>
+            <Card>
+              <Statistic
+                title="Engagement Rate"
+                value={stats.engagement_rate}
+                suffix="posts/user"
+                precision={2}
+                loading={loading}
+              />
+              <Progress 
+                percent={Math.min(stats.engagement_rate * 20, 100)} 
+                showInfo={false}
+                size="small"
+                strokeColor="#722ed1"
+              />
+            </Card>
+          </Col>
+        </Row>
+
+        {/* Pending Actions */}
+        <Row gutter={[16, 16]} className="mb-8">
+          <Col xs={24} sm={12} lg={8}>
+            <Card 
+              className="cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => router.push('/admin/kyc')}
+            >
+              <Statistic
+                title="Pending KYC Reviews"
+                value={stats.pending_kyc}
+                prefix={<SafetyCertificateOutlined />}
+                valueStyle={{ color: stats.pending_kyc > 0 ? '#faad14' : '#52c41a' }}
+                loading={loading}
+              />
+              <div className="flex justify-between items-center mt-2">
+                <Text type="secondary">Requires attention</Text>
+                <Button type="link" size="small" icon={<ArrowRightOutlined />}>
+                  Review
+                </Button>
+              </div>
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} lg={8}>
+            <Card 
+              className="cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => router.push('/admin/payments')}
+            >
+              <Statistic
+                title="Pending Payments"
+                value={stats.pending_payments}
+                prefix={<WalletOutlined />}
+                valueStyle={{ color: stats.pending_payments > 0 ? '#faad14' : '#52c41a' }}
+                loading={loading}
+              />
+              <div className="flex justify-between items-center mt-2">
+                <Text type="secondary">Awaiting approval</Text>
+                <Button type="link" size="small" icon={<ArrowRightOutlined />}>
+                  Process
+                </Button>
+              </div>
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} lg={8}>
+            <Card>
+              <Statistic
+                title="Points Distributed"
+                value={formatNumber(stats.total_points_distributed)}
+                prefix={<WalletOutlined />}
+                loading={loading}
+              />
+              <div className="flex justify-between items-center mt-2">
+                <Text type="secondary">Total earned by users</Text>
+              </div>
+            </Card>
+          </Col>
+        </Row>
+
+        {/* Recent Activity and Quick Actions */}
+        <Row gutter={[16, 16]}>
+          <Col xs={24} lg={16}>
+            <Card title="Recent Activity" className="h-full">
+              <List
+                dataSource={recentActivity}
+                loading={loading}
+                renderItem={(item) => (
+                  <List.Item>
+                    <List.Item.Meta
+                      avatar={
+                        <Avatar 
+                          src={item.user_avatar} 
+                          icon={<UserOutlined />}
+                          size="default"
+                        />
+                      }
+                      title={
+                        <Space>
+                          {getActivityIcon(item.type)}
+                          <Text strong>{item.user_name}</Text>
+                          <Text>{item.description}</Text>
+                          {item.status && (
+                            <Tag color={getStatusColor(item.status)}>
+                              {item.status}
+                            </Tag>
+                          )}
+                        </Space>
+                      }
+                      description={formatRelativeTime(item.created_at)}
+                    />
+                  </List.Item>
+                )}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} lg={8}>
+            <Card title="Quick Actions" className="h-full">
+              <Space direction="vertical" size="middle" className="w-full">
+                <Button 
+                  type="primary" 
+                  block 
+                  icon={<UserOutlined />}
+                  onClick={() => router.push('/admin/users')}
+                >
+                  Manage Users
+                </Button>
+                <Button 
+                  block 
+                  icon={<EnvironmentOutlined />}
+                  onClick={() => router.push('/admin/cities')}
+                >
+                  Manage Cities
+                </Button>
+                <Button 
+                  block 
+                  icon={<FileTextOutlined />}
+                  onClick={() => router.push('/admin/posts')}
+                >
+                  Manage Posts
+                </Button>
+                <Divider />
+                <Button 
+                  block 
+                  icon={<SafetyCertificateOutlined />}
+                  onClick={() => router.push('/admin/kyc')}
+                  danger={stats.pending_kyc > 0}
+                >
+                  KYC Reviews {stats.pending_kyc > 0 && `(${stats.pending_kyc})`}
+                </Button>
+                <Button 
+                  block 
+                  icon={<WalletOutlined />}
+                  onClick={() => router.push('/admin/payments')}
+                  danger={stats.pending_payments > 0}
+                >
+                  Payment Requests {stats.pending_payments > 0 && `(${stats.pending_payments})`}
+                </Button>
+              </Space>
+            </Card>
+          </Col>
+        </Row>
       </div>
-
-      {/* Management Tabs */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-      >
-        <Card title="Platform Management" className="shadow-sm">
-          <Tabs
-            defaultActiveKey="users"
-            items={[
-              {
-                key: 'users',
-                label: 'Recent Users',
-                children: (
-                  <Table
-                    dataSource={users}
-                    columns={userColumns}
-                    rowKey="id"
-                    loading={loading}
-                    pagination={{ pageSize: 10 }}
-                    scroll={{ x: 800 }}
-                  />
-                )
-              },
-              {
-                key: 'kyc',
-                label: 'KYC Verification',
-                children: (
-                  <Table
-                    dataSource={kycSubmissions}
-                    columns={kycColumns}
-                    rowKey="id"
-                    loading={loading}
-                    pagination={{ pageSize: 10 }}
-                    scroll={{ x: 600 }}
-                  />
-                )
-              },
-              {
-                key: 'payments',
-                label: 'Payment Requests',
-                children: (
-                  <Table
-                    dataSource={paymentRequests}
-                    columns={paymentColumns}
-                    rowKey="id"
-                    loading={loading}
-                    pagination={{ pageSize: 10 }}
-                    scroll={{ x: 700 }}
-                  />
-                )
-              }
-            ]}
-            size="large"
-          />
-        </Card>
-      </motion.div>
-
-      {/* Points Management Modal */}
-      <Modal
-        title="Manage User Points"
-        open={showPointsModal}
-        onCancel={() => setShowPointsModal(false)}
-        footer={null}
-      >
-        <Form
-          form={pointsForm}
-          onFinish={handlePointsUpdate}
-          layout="vertical"
-        >
-          <Form.Item
-            name="type"
-            label="Action"
-            rules={[{ required: true, message: 'Please select action type' }]}
-          >
-            <Select placeholder="Select action">
-              <Option value="admin_credit">Add Points</Option>
-              <Option value="admin_debit">Deduct Points</Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            name="amount"
-            label="Amount"
-            rules={[{ required: true, message: 'Please enter amount' }]}
-          >
-            <InputNumber
-              min={1}
-              className="w-full"
-              placeholder="Enter points amount"
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="description"
-            label="Description"
-            rules={[{ required: true, message: 'Please enter description' }]}
-          >
-            <Input.TextArea
-              placeholder="Enter reason for points adjustment"
-              rows={3}
-            />
-          </Form.Item>
-
-          <Form.Item>
-            <Button type="primary" htmlType="submit" className="w-full">
-              Update Points
-            </Button>
-          </Form.Item>
-        </Form>
-      </Modal>
-    </div>
+    </motion.div>
   )
 }

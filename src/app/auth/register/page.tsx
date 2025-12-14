@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Form, Input, Button, Typography, Space, Alert, Select, Divider } from 'antd'
-import { UserOutlined, LockOutlined, MailOutlined, PhoneOutlined, EnvironmentOutlined, GiftOutlined } from '@ant-design/icons'
+import { UserOutlined, LockOutlined, MailOutlined, PhoneOutlined, EnvironmentOutlined, GiftOutlined, GoogleOutlined } from '@ant-design/icons'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { supabaseClient } from '../../../lib/supabase-client'
@@ -92,6 +92,33 @@ export default function RegisterPage() {
         isValid: false,
         message: 'Invalid referral code'
       })
+    }
+  }
+
+  const handleGoogleSignUp = async () => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      const { data, error } = await supabaseClient.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      })
+
+      if (error) {
+        setError(error.message)
+        setLoading(false)
+      }
+      // Don't set loading to false here as the page will redirect
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during Google sign-up')
+      setLoading(false)
     }
   }
 
@@ -377,8 +404,20 @@ export default function RegisterPage() {
           </Form>
 
           <Divider>
-            <Text type="secondary">or</Text>
+            <Text type="secondary">or continue with</Text>
           </Divider>
+
+          {/* Google Sign Up Button */}
+          <Button
+            icon={<GoogleOutlined />}
+            onClick={handleGoogleSignUp}
+            loading={loading}
+            disabled={loading}
+            className="w-full h-12 rounded-xl mb-6 font-semibold flex items-center justify-center"
+            size="large"
+          >
+            Continue with Google
+          </Button>
 
           {/* Sign In Link */}
           <div className="text-center">

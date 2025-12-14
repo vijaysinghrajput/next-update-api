@@ -15,58 +15,93 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        // Get the code from URL (email verification)
+        // Get the code from URL (email verification or OAuth)
         const code = searchParams.get('code')
         const error = searchParams.get('error')
         const errorDescription = searchParams.get('error_description')
 
         if (error) {
           setStatus('error')
-          setMessage(errorDescription || 'Verification failed')
+          setMessage(errorDescription || 'Authentication failed')
+          setTimeout(() => router.push('/auth/login'), 3000)
           return
         }
 
         if (code) {
-          // Exchange the code for a session
+          // Exchange the code for a session (works for both email and OAuth)
           const { data, error: exchangeError } = await supabaseClient.auth.exchangeCodeForSession(code)
 
           if (exchangeError) {
             setStatus('error')
             setMessage(exchangeError.message)
+            setTimeout(() => router.push('/auth/login'), 3000)
             return
           }
 
           if (data?.user) {
-            // Check if email is confirmed
-            if (data.user.email_confirmed_at) {
-              setStatus('success')
-              setMessage('Email verified successfully!')
-              
-              // Redirect to home after 2 seconds
-              setTimeout(() => {
-                router.push('/')
-              }, 2000)
+            // Ensure user has a profile (create if missing, important for OAuth users)
+            const { data: profile } = await supabaseClient
+              .from('profiles')
+              .select('id')
+              .eq('id', data.user.id)
+              .single()
+
+            if (!profile) {
+              try {
+                // Create profile for new OAuth user
+                const userName = data.user.user_metadata?.full_name || 
+                                data.user.user_metadata?.name || 
+                                data.user.email?.split('@')[0] || 
+                                'User'
+                
+                await supabaseClient.rpc('create_user_profile', {
+                  user_id: data.user.id,
+                  user_email: data.user.email!,
+                  user_name: userName,
+                  user_phone: data.user.user_metadata?.phone || null,
+                  user_city_id: null,
+                  referral_code_used: null
+                })
+              } catch (profileError) {
+                console.error('Error creating profile:', profileError)
+                // Continue anyway, profile might already exist
+              }
+            }
+
+            setStatus('success')
+            
+            // Check if user is admin
+            const email = data.user.email?.toLowerCase()
+            const isAdmin = email === 'admin@nextupdate.in' || email === 'support@nextupdate.in'
+            
+            if (isAdmin) {
+              setMessage('Login successful! Redirecting to admin panel...')
+              setTimeout(() => router.push('/admin'), 2000)
             } else {
-              setStatus('error')
-              setMessage('Email verification incomplete')
+              setMessage('Login successful! Redirecting...')
+              setTimeout(() => router.push('/'), 2000)
             }
           }
         } else {
           // No code, might be already logged in
           const { data: { user } } = await supabaseClient.auth.getUser()
           
-          if (user?.email_confirmed_at) {
+          if (user) {
             setStatus('success')
-            setMessage('Already verified!')
-            setTimeout(() => router.push('/'), 1000)
+            setMessage('Already authenticated!')
+            const email = user.email?.toLowerCase()
+            const isAdmin = email === 'admin@nextupdate.in' || email === 'support@nextupdate.in'
+            setTimeout(() => router.push(isAdmin ? '/admin' : '/'), 1000)
           } else {
             setStatus('error')
-            setMessage('Invalid verification link')
+            setMessage('Invalid authentication link')
+            setTimeout(() => router.push('/auth/login'), 3000)
           }
         }
       } catch (err: any) {
         setStatus('error')
-        setMessage(err.message || 'An error occurred during verification')
+        setMessage(err.message || 'An error occurred during authentication')
+        setTimeout(() => router.push('/auth/login'), 3000)
       }
     }
 
@@ -78,7 +113,7 @@ export default function AuthCallbackPage() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
         <div className="text-center">
           <Spin size="large" />
-          <p className="mt-4 text-gray-600">Verifying your email...</p>
+          <p className="mt-4 text-gray-600">Authenticating...</p>
         </div>
       </div>
     )
@@ -90,8 +125,8 @@ export default function AuthCallbackPage() {
         <Result
           status="success"
           icon={<CheckCircleOutlined className="text-green-500" />}
-          title="Email Verified Successfully!"
-          subTitle={message || 'Redirecting to home...'}
+          title="Authentication Successful!"
+          subTitle={message || 'Redirecting...'}
         />
       </div>
     )

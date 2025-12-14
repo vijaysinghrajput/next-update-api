@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { Providers } from "../lib/providers";
@@ -24,9 +24,17 @@ export const metadata: Metadata = {
   description: "Connect, share, and earn points in your city. Join the social platform where community meets rewards.",
   keywords: "social media, referral, points, city-based, community, uttar pradesh",
   authors: [{ name: "Next Update Team" }],
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover',
-  themeColor: '#007AFF',
 };
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  minimumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
+  themeColor: '#007AFF',
+}
 
 // Viewport moved to metadata in Next.js 14
 

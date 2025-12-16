@@ -285,6 +285,27 @@ export const initMobileBridge = (): void => {
     userAgent: navigator.userAgent
   })
   
+  // Check if user just completed OAuth (for mobile app)
+  if (isMobileApp()) {
+    // Check for auth session
+    import('../lib/supabase-client').then(({ supabaseClient }) => {
+      supabaseClient.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          console.log('[MobileBridge] ✅ Active session detected:', session.user.email)
+          sendToNativeApp('session_detected', {
+            user: {
+              id: session.user.id,
+              email: session.user.email,
+              name: session.user.user_metadata?.full_name || session.user.user_metadata?.name
+            }
+          })
+        } else {
+          console.log('[MobileBridge] No active session found')
+        }
+      })
+    })
+  }
+  
   // Message handler function
   const handleNativeMessage = async (event: MessageEvent) => {
     try {

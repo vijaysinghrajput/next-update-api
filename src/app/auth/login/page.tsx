@@ -32,10 +32,12 @@ export default function LoginPage() {
   }, [searchParams])
 
   const handleGoogleLogin = async () => {
+    console.log('[Login] Google login clicked')
     setLoading(true)
     setError(null)
 
     try {
+      console.log('[Login] Calling signInWithOAuth...')
       const { data, error } = await supabaseClient.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -47,12 +49,38 @@ export default function LoginPage() {
         },
       })
 
+      console.log('[Login] OAuth response:', { data, error })
+
       if (error) {
+        console.error('[Login] OAuth error:', error)
         setError(error.message)
         setLoading(false)
+        return
+      }
+
+      if (data?.url) {
+        console.log('[Login] OAuth URL received:', data.url)
+        
+        // Check if we're in the mobile app
+        const isMobile = !!(window as any).ReactNativeWebView || !!(window as any).isMobileApp
+        
+        if (isMobile) {
+          // Send OAuth request to mobile app
+          console.log('[Login] Sending oauth_request to mobile app')
+          if ((window as any).ReactNativeWebView) {
+            (window as any).ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'oauth_request',
+              url: data.url
+            }))
+          }
+        } else {
+          // Browser - normal redirect
+          window.location.href = data.url
+        }
       }
       // Don't set loading to false here as the page will redirect
     } catch (err: any) {
+      console.error('[Login] Exception during OAuth:', err)
       setError(err.message || 'An error occurred during Google sign-in')
       setLoading(false)
     }

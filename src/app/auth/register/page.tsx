@@ -96,6 +96,7 @@ export default function RegisterPage() {
   }
 
   const handleGoogleSignUp = async () => {
+    console.log('[Register] Google signup clicked')
     setLoading(true)
     setError(null)
 
@@ -103,6 +104,9 @@ export default function RegisterPage() {
       // Get selected city from form (if user selected one before clicking Google)
       const cityId = form.getFieldValue('cityId')
       const referralCode = form.getFieldValue('referralCode')
+      
+      console.log('[Register] Form data:', { cityId, referralCode })
+      console.log('[Register] Calling signInWithOAuth...')
       
       const { data, error } = await supabaseClient.auth.signInWithOAuth({
         provider: 'google',
@@ -123,12 +127,38 @@ export default function RegisterPage() {
         },
       })
 
+      console.log('[Register] OAuth response:', { data, error })
+
       if (error) {
+        console.error('[Register] OAuth error:', error)
         setError(error.message)
         setLoading(false)
+        return
+      }
+
+      if (data?.url) {
+        console.log('[Register] OAuth URL received:', data.url)
+        
+        // Check if we're in the mobile app
+        const isMobile = !!(window as any).ReactNativeWebView || !!(window as any).isMobileApp
+        
+        if (isMobile) {
+          // Send OAuth request to mobile app
+          console.log('[Register] Sending oauth_request to mobile app')
+          if ((window as any).ReactNativeWebView) {
+            (window as any).ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'oauth_request',
+              url: data.url
+            }))
+          }
+        } else {
+          // Browser - normal redirect
+          window.location.href = data.url
+        }
       }
       // Don't set loading to false here as the page will redirect
     } catch (err: any) {
+      console.error('[Register] Exception during OAuth:', err)
       setError(err.message || 'An error occurred during Google sign-up')
       setLoading(false)
     }

@@ -38,10 +38,19 @@ export default function LoginPage() {
 
     try {
       console.log('[Login] Calling signInWithOAuth...')
+      
+      // Check if we're in mobile app
+      const isMobile = !!(window as any).ReactNativeWebView || !!(window as any).isMobileApp
+      
+      // For mobile app, use a special redirect that will help us capture the session
+      const redirectUrl = isMobile 
+        ? `${window.location.origin}/auth/callback?mobile=true`
+        : `${window.location.origin}/auth/callback`
+      
       const { data, error } = await supabaseClient.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: redirectUrl,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
@@ -60,9 +69,6 @@ export default function LoginPage() {
 
       if (data?.url) {
         console.log('[Login] OAuth URL received:', data.url)
-        
-        // Check if we're in the mobile app
-        const isMobile = !!(window as any).ReactNativeWebView || !!(window as any).isMobileApp
         
         if (isMobile) {
           // Send OAuth request to mobile app

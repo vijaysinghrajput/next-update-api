@@ -21,6 +21,7 @@ export default function AuthCallbackPage() {
         const error = searchParams.get('error')
         const errorDescription = searchParams.get('error_description')
         const isSignup = searchParams.get('signup') === 'true'
+        const isMobileRequest = searchParams.get('mobile') === 'true'
 
         if (error) {
           console.error('[Auth Callback] Error:', errorDescription)
@@ -31,7 +32,7 @@ export default function AuthCallbackPage() {
         }
 
         if (code) {
-          console.log('[Auth Callback] Processing auth code...')
+          console.log('[Auth Callback] Processing auth code...', { isMobileRequest })
           
           // Exchange the code for a session (works for both email and OAuth)
           const { data, error: exchangeError } = await supabaseClient.auth.exchangeCodeForSession(code)
@@ -143,27 +144,34 @@ export default function AuthCallbackPage() {
 
             setStatus('success')
             
-            // For mobile app, send the session data back
-            if (isMobileApp()) {
-              console.log('[Auth Callback] Mobile app detected, sending session data')
+            // For mobile app, send session data and show instructions
+            if (isMobileApp() || isMobileRequest) {
+              console.log('[Auth Callback] Mobile detected - sending auth complete message')
               
-              // Get the session tokens
+              // Get the full session
               const { data: { session } } = await supabaseClient.auth.getSession()
               
               if (session) {
-                // Send session to mobile app
+                // Send complete session to mobile app
                 sendToNativeApp('auth_complete', {
+                  success: true,
                   session: {
                     access_token: session.access_token,
                     refresh_token: session.refresh_token,
                     expires_at: session.expires_at,
-                    user: {
-                      id: data.user.id,
-                      email: data.user.email,
-                      name: data.user.user_metadata?.full_name || data.user.user_metadata?.name
-                    }
+                  },
+                  user: {
+                    id: data.user.id,
+                    email: data.user.email,
+                    name: data.user.user_metadata?.full_name || data.user.user_metadata?.name
                   }
                 })
+                
+                // Show mobile-friendly message
+                setMessage('Authentication successful! You can now close this browser and return to the app.')
+                
+                // Don't auto-redirect for mobile - let user close browser manually
+                return
               }
             }
             

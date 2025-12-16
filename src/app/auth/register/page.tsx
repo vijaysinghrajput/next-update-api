@@ -100,14 +100,26 @@ export default function RegisterPage() {
     setError(null)
 
     try {
+      // Get selected city from form (if user selected one before clicking Google)
+      const cityId = form.getFieldValue('cityId')
+      const referralCode = form.getFieldValue('referralCode')
+      
       const { data, error } = await supabaseClient.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback?signup=true`,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
           },
+          // Pass signup data through OAuth state
+          ...(cityId || referralCode ? {
+            data: {
+              city_id: cityId,
+              referral_code: referralCode,
+              is_signup: true
+            }
+          } : {})
         },
       })
 

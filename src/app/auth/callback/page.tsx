@@ -143,16 +143,28 @@ export default function AuthCallbackPage() {
 
             setStatus('success')
             
-            // Notify mobile app of successful auth
+            // For mobile app, send the session data back
             if (isMobileApp()) {
-              console.log('[Auth Callback] Notifying mobile app of successful auth')
-              sendToNativeApp('auth_success', {
-                user: {
-                  id: data.user.id,
-                  email: data.user.email,
-                  name: data.user.user_metadata?.full_name || data.user.user_metadata?.name
-                }
-              })
+              console.log('[Auth Callback] Mobile app detected, sending session data')
+              
+              // Get the session tokens
+              const { data: { session } } = await supabaseClient.auth.getSession()
+              
+              if (session) {
+                // Send session to mobile app
+                sendToNativeApp('auth_complete', {
+                  session: {
+                    access_token: session.access_token,
+                    refresh_token: session.refresh_token,
+                    expires_at: session.expires_at,
+                    user: {
+                      id: data.user.id,
+                      email: data.user.email,
+                      name: data.user.user_metadata?.full_name || data.user.user_metadata?.name
+                    }
+                  }
+                })
+              }
             }
             
             // Check if user is admin

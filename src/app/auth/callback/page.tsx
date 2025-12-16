@@ -12,6 +12,7 @@ export default function AuthCallbackPage() {
   const searchParams = useSearchParams()
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
   const [message, setMessage] = useState('')
+  const [deepLinkUrl, setDeepLinkUrl] = useState<string | null>(null)
 
   useEffect(() => {
     const handleCallback = async () => {
@@ -161,25 +162,38 @@ export default function AuthCallbackPage() {
                 console.log('[Auth Callback] Using deep link to return to app with session...');
                 
                 // Encode session tokens in URL - use proper URL encoding
-                const deepLinkUrl = `nextupdate://auth/callback?` +
+                const deepLink = `nextupdate://auth/callback?` +
                   `access_token=${encodeURIComponent(session.access_token)}&` +
                   `refresh_token=${encodeURIComponent(session.refresh_token)}&` +
                   `expires_at=${session.expires_at}&` +
                   `user_id=${session.user.id}&` +
                   `email=${encodeURIComponent(session.user.email || '')}`;
                 
-                console.log('[Auth Callback] Redirecting to deep link...');
+                console.log('[Auth Callback] Deep link created');
+                
+                // Save deep link for UI
+                setDeepLinkUrl(deepLink);
                 
                 // Show success message
-                setMessage('✅ Authentication successful! Returning to app...')
+                setMessage('✅ Authentication successful! Opening app...')
                 
-                // Immediately try to open deep link
-                window.location.href = deepLinkUrl;
+                // Try multiple methods to open the app
+                console.log('[Auth Callback] Method 1: Direct window.location');
+                window.location.href = deepLink;
                 
-                // Also try after a short delay as fallback
+                // Method 2: Create and click a link
                 setTimeout(() => {
-                  window.location.href = deepLinkUrl;
+                  console.log('[Auth Callback] Method 2: Creating link element');
+                  const a = document.createElement('a');
+                  a.href = deepLink;
+                  a.click();
                 }, 100);
+                
+                // Method 3: Try after delay
+                setTimeout(() => {
+                  console.log('[Auth Callback] Method 3: Delayed attempt');
+                  window.location.replace(deepLink);
+                }, 500);
                 
                 return;
               }
@@ -332,13 +346,31 @@ export default function AuthCallbackPage() {
 
   if (status === 'success') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-blue-50">
-        <Result
-          status="success"
-          icon={<CheckCircleOutlined className="text-green-500" />}
-          title="Authentication Successful!"
-          subTitle={message || 'Redirecting...'}
-        />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-blue-50 p-6">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
+          <Result
+            status="success"
+            icon={<CheckCircleOutlined className="text-green-500" style={{ fontSize: '64px' }} />}
+            title="Authentication Successful!"
+            subTitle={message || 'Redirecting...'}
+          />
+          
+          {deepLinkUrl && (
+            <div className="mt-6 text-center">
+              <p className="text-gray-600 mb-4">If the app doesn't open automatically:</p>
+              <a 
+                href={deepLinkUrl}
+                className="inline-block bg-primary hover:bg-primary/90 text-white font-semibold py-3 px-6 rounded-xl transition-all shadow-lg hover:shadow-xl"
+                onClick={(e) => {
+                  console.log('[Manual Click] Opening app with deep link');
+                }}
+              >
+                Open NextUpdate App
+              </a>
+              <p className="text-sm text-gray-500 mt-4">You can close this browser tab after opening the app</p>
+            </div>
+          )}
+        </div>
       </div>
     )
   }

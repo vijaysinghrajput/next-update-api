@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { Providers } from "../lib/providers";
 import MobileLayout from "../components/layout/MobileLayout";
+import MobileBridgeInit from "../components/MobileBridgeInit";
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -64,6 +65,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <MobileBridgeInit />
         <Providers>
           <MobileLayout>
             {children}

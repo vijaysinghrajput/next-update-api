@@ -274,9 +274,16 @@ export const initMobileBridge = (): void => {
   
   // Prevent double initialization
   if ((window as any).__mobileBridgeInitialized) {
+    console.log('[MobileBridge] Already initialized, skipping')
     return
   }
   ;(window as any).__mobileBridgeInitialized = true
+  
+  console.log('[MobileBridge] Starting initialization...', { 
+    isMobileApp: isMobileApp(),
+    hasReactNativeWebView: !!window.ReactNativeWebView,
+    userAgent: navigator.userAgent
+  })
   
   // Message handler function
   const handleNativeMessage = async (event: MessageEvent) => {
@@ -483,21 +490,11 @@ export const initMobileBridge = (): void => {
     })
   }
   
-  console.log('[MobileBridge] Initialized', { isMobileApp: isMobileApp() })
-}
-
-// Auto-initialize on load - deferred for performance
-if (typeof window !== 'undefined') {
-  // Use requestIdleCallback for better performance, fallback to setTimeout
-  if ('requestIdleCallback' in window) {
-    (window as any).requestIdleCallback(() => {
-      initMobileBridge()
-    }, { timeout: 2000 })
-  } else {
-    setTimeout(() => {
-      initMobileBridge()
-    }, 1000)
-  }
+  console.log('[MobileBridge] Initialized', { 
+    isMobileApp: isMobileApp(),
+    listenersRegistered: true,
+    enhancementsEnabled: isMobileApp()
+  })
 }
 
 export {}

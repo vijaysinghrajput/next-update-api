@@ -5,6 +5,11 @@ import { generateReferralCode } from './utils'
 // Extended Supabase client for Refine
 export const supabaseClient = supabase
 
+// Expose supabaseClient globally for mobile app integration
+if (typeof window !== 'undefined') {
+  (window as any).supabaseClient = supabaseClient
+}
+
 // Auth provider for Refine
 export const authProvider: AuthProvider = {
   login: async ({ email, password, referralCode }) => {

@@ -145,15 +145,23 @@ export default function AuthCallbackPage() {
             setStatus('success')
             
             // For mobile app, send session data and show instructions
+            console.log('[Auth Callback] Checking mobile status:', { isMobileApp: isMobileApp(), isMobileRequest })
+            
             if (isMobileApp() || isMobileRequest) {
-              console.log('[Auth Callback] Mobile detected - sending auth complete message')
+              console.log('===== Mobile App Detected =====');
+              console.log('[Auth Callback] Fetching session...');
               
               // Get the full session
               const { data: { session } } = await supabaseClient.auth.getSession()
               
+              console.log('[Auth Callback] Session exists:', !!session);
+              
               if (session) {
-                // Send complete session to mobile app
-                sendToNativeApp('auth_complete', {
+                console.log('[Auth Callback] Session user:', session.user?.email);
+                console.log('[Auth Callback] Access token length:', session.access_token?.length);
+                console.log('[Auth Callback] Preparing auth_complete message...');
+                
+                const messagePayload = {
                   success: true,
                   session: {
                     access_token: session.access_token,
@@ -165,13 +173,27 @@ export default function AuthCallbackPage() {
                     email: data.user.email,
                     name: data.user.user_metadata?.full_name || data.user.user_metadata?.name
                   }
-                })
+                };
+                
+                console.log('[Auth Callback] Sending auth_complete message:', {
+                  success: messagePayload.success,
+                  userEmail: messagePayload.user.email,
+                  hasAccessToken: !!messagePayload.session.access_token,
+                  hasRefreshToken: !!messagePayload.session.refresh_token
+                });
+                
+                // Send complete session to mobile app
+                sendToNativeApp('auth_complete', messagePayload);
+                
+                console.log('[Auth Callback] ✅ Message sent to mobile app');
                 
                 // Show mobile-friendly message
                 setMessage('Authentication successful! You can now close this browser and return to the app.')
                 
                 // Don't auto-redirect for mobile - let user close browser manually
                 return
+              } else {
+                console.error('[Auth Callback] ❌ No session found after exchange!');
               }
             }
             

@@ -36,12 +36,18 @@ export default function RegisterPage() {
     referrerName?: string
   }>({ isValid: null, message: '' })
 
-  // Get referral code from URL
+  // Get referral code and email from URL
   useEffect(() => {
     const ref = searchParams.get('ref')
+    const email = searchParams.get('email')
+    
     if (ref) {
       setReferralCode(ref)
       form.setFieldsValue({ referralCode: ref })
+    }
+    
+    if (email) {
+      form.setFieldsValue({ email: decodeURIComponent(email) })
     }
   }, [searchParams, form])
 

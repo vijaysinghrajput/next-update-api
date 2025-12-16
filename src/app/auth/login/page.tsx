@@ -107,7 +107,11 @@ export default function LoginPage() {
 
       if (error) {
         if (error.message.includes('Invalid login credentials')) {
-          setError('Invalid email or password. Please check your credentials.')
+          // Check if this is a new user who needs to sign up first
+          setError('No account found with this email. Please sign up first.')
+          setTimeout(() => {
+            router.push(`/auth/register?email=${encodeURIComponent(email)}`)
+          }, 2000)
         } else if (error.message.includes('Email not confirmed')) {
           setError('Please verify your email first.')
           // Redirect to verification page after 2 seconds

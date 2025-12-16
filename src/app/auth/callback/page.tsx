@@ -144,10 +144,44 @@ export default function AuthCallbackPage() {
 
             setStatus('success')
             
-            // For mobile app, send session data and show instructions
+            // For mobile app, redirect with session tokens via deep link
             console.log('[Auth Callback] Checking mobile status:', { isMobileApp: isMobileApp(), isMobileRequest })
             
-            if (isMobileApp() || isMobileRequest) {
+            if (isMobileRequest) {
+              console.log('===== Mobile Request Detected =====');
+              console.log('[Auth Callback] Fetching session...');
+              
+              // Get the full session
+              const { data: { session } } = await supabaseClient.auth.getSession()
+              
+              console.log('[Auth Callback] Session exists:', !!session);
+              
+              if (session) {
+                console.log('[Auth Callback] Session user:', session.user?.email);
+                console.log('[Auth Callback] Using deep link to return to app with session...');
+                
+                // Encode session tokens in URL
+                const deepLinkUrl = `nextupdate://auth/callback?` +
+                  `access_token=${encodeURIComponent(session.access_token)}&` +
+                  `refresh_token=${encodeURIComponent(session.refresh_token)}&` +
+                  `expires_at=${session.expires_at}`;
+                
+                console.log('[Auth Callback] Redirecting to deep link...');
+                
+                // Show success message before redirecting
+                setMessage('Authentication successful! Returning to app...')
+                
+                // Try to open deep link
+                setTimeout(() => {
+                  window.location.href = deepLinkUrl;
+                }, 500);
+                
+                return;
+              }
+            }
+            
+            // For regular web or if mobile deep link fails, send message
+            if (isMobileApp()) {
               console.log('===== Mobile App Detected =====');
               console.log('[Auth Callback] Fetching session...');
               

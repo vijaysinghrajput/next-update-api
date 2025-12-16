@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Spin, Result } from 'antd'
 import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
 import { supabaseClient } from '../../../lib/supabase-client'
+import { isMobileApp, sendToNativeApp } from '../../../utils/mobileBridge'
 
 export default function AuthCallbackPage() {
   const router = useRouter()
@@ -141,6 +142,18 @@ export default function AuthCallbackPage() {
             }
 
             setStatus('success')
+            
+            // Notify mobile app of successful auth
+            if (isMobileApp()) {
+              console.log('[Auth Callback] Notifying mobile app of successful auth')
+              sendToNativeApp('auth_success', {
+                user: {
+                  id: data.user.id,
+                  email: data.user.email,
+                  name: data.user.user_metadata?.full_name || data.user.user_metadata?.name
+                }
+              })
+            }
             
             // Check if user is admin
             const email = data.user.email?.toLowerCase()

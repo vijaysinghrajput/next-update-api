@@ -46,14 +46,14 @@ export default function AuthCallbackPage() {
           if (data?.user) {
             console.log('[Auth Callback] User authenticated:', data.user.email)
             
-            // Check if profile exists
+            // Check if profile exists - use maybeSingle to avoid errors
             const { data: existingProfile, error: profileCheckError } = await supabaseClient
               .from('profiles')
               .select('id, name, email, city_id, referral_code')
               .eq('id', data.user.id)
-              .single()
+              .maybeSingle()
 
-            const isNewUser = !existingProfile || profileCheckError
+            const isNewUser = !existingProfile
 
             if (isNewUser) {
               console.log('[Auth Callback] New user detected, creating profile...')
@@ -160,6 +160,50 @@ export default function AuthCallbackPage() {
           
           if (user) {
             console.log('[Auth Callback] Already authenticated:', user.email)
+            
+            // Check if profile exists for already authenticated user
+            const { data: existingProfile } = await supabaseClient
+              .from('profiles')
+              .select('id, name')
+              .eq('id', user.id)
+              .maybeSingle()
+            
+            // If no profile, create one (might happen if OAuth was interrupted)
+            if (!existingProfile) {
+              console.log('[Auth Callback] Creating missing profile for authenticated user...')
+              
+              const generateReferralCode = () => {
+                const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+                let code = ''
+                for (let i = 0; i < 6; i++) {
+                  code += chars.charAt(Math.floor(Math.random() * chars.length))
+                }
+                return code
+              }
+              
+              const userName = user.user_metadata?.full_name || 
+                              user.user_metadata?.name || 
+                              user.email?.split('@')[0] || 
+                              'User'
+              
+              await supabaseClient
+                .from('profiles')
+                .insert({
+                  id: user.id,
+                  email: user.email!,
+                  name: userName,
+                  referral_code: generateReferralCode(),
+                  points_balance: 0,
+                  is_verified: true,
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                })
+                .select()
+                .single()
+              
+              console.log('[Auth Callback] ✅ Profile created for already authenticated user')
+            }
+            
             setStatus('success')
             setMessage('Already authenticated!')
             const email = user.email?.toLowerCase()

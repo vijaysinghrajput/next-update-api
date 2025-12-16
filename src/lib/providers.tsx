@@ -111,13 +111,13 @@ export function Providers({ children }: ProvidersProps) {
       const { data: { user: authUser } } = await supabaseClient.auth.getUser()
       
       if (authUser) {
-        const { data: profile } = await supabaseClient
+        const { data: profile, error: profileError } = await supabaseClient
           .from('profiles')
           .select('*, cities(name)')
           .eq('id', authUser.id)
-          .single()
+          .maybeSingle()
         
-        if (profile) {
+        if (profile && !profileError) {
           setUser(profile)
           
           // Set user's signup city as their home city
@@ -135,6 +135,8 @@ export function Providers({ children }: ProvidersProps) {
           // Ensure loading finishes AFTER all state is set
           setIsLoading(false)
         } else {
+          // Profile doesn't exist - user might be in the middle of OAuth signup
+          console.log('⚠️ Profile not found for authenticated user, treating as guest temporarily')
           setIsLoading(false)
         }
       } else {

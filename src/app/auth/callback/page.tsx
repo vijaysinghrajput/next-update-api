@@ -24,6 +24,12 @@ export default function AuthCallbackPage() {
         const isSignup = searchParams.get('signup') === 'true'
         const isMobileRequest = searchParams.get('mobile') === 'true'
 
+        console.log('[Auth Callback] ===== INITIAL CHECK =====');
+        console.log('[Auth Callback] Has code:', !!code);
+        console.log('[Auth Callback] Has error:', !!error);
+        console.log('[Auth Callback] isMobileRequest:', isMobileRequest);
+        console.log('[Auth Callback] All params:', Object.fromEntries(searchParams.entries()));
+
         if (error) {
           console.error('[Auth Callback] Error:', errorDescription)
           setStatus('error')
@@ -357,17 +363,18 @@ export default function AuthCallbackPage() {
           
           {deepLinkUrl && (
             <div className="mt-6 text-center">
-              <p className="text-gray-600 mb-4">If the app doesn't open automatically:</p>
+              <p className="text-gray-600 mb-4 font-semibold">✅ You're logged in!</p>
+              <p className="text-sm text-gray-500 mb-4">Return to the Next Update app and you'll be signed in.</p>
               <a 
                 href={deepLinkUrl}
-                className="inline-block bg-primary hover:bg-primary/90 text-white font-semibold py-3 px-6 rounded-xl transition-all shadow-lg hover:shadow-xl"
+                className="inline-block bg-primary hover:bg-primary/90 text-white font-semibold py-3 px-8 rounded-xl transition-all shadow-lg hover:shadow-xl text-lg"
                 onClick={(e) => {
                   console.log('[Manual Click] Opening app with deep link');
                 }}
               >
-                Open NextUpdate App
+                📱 Open App
               </a>
-              <p className="text-sm text-gray-500 mt-4">You can close this browser tab after opening the app</p>
+              <p className="text-xs text-gray-400 mt-4">Close this tab after returning to the app</p>
             </div>
           )}
         </div>

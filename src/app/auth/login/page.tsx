@@ -32,7 +32,7 @@ export default function LoginPage() {
   }, [searchParams])
 
   const handleGoogleLogin = async () => {
-    console.log('[Login] Google login clicked')
+    console.log('[Login] 🚀 Google login clicked')
     setLoading(true)
     setError(null)
 
@@ -41,11 +41,14 @@ export default function LoginPage() {
       
       // Check if we're in mobile app
       const isMobile = !!(window as any).ReactNativeWebView || !!(window as any).isMobileApp
+      console.log('[Login] Is mobile app:', isMobile)
       
-      // For mobile app, use a special redirect that will help us capture the session
+      // Always use mobile=true for mobile app to trigger deep link return
       const redirectUrl = isMobile 
         ? `${window.location.origin}/auth/callback?mobile=true`
         : `${window.location.origin}/auth/callback`
+      
+      console.log('[Login] Redirect URL:', redirectUrl)
       
       const { data, error } = await supabaseClient.auth.signInWithOAuth({
         provider: 'google',
@@ -58,7 +61,7 @@ export default function LoginPage() {
         },
       })
 
-      console.log('[Login] OAuth response:', { data, error })
+      console.log('[Login] OAuth response:', { hasData: !!data, hasError: !!error })
 
       if (error) {
         console.error('[Login] OAuth error:', error)
@@ -68,19 +71,23 @@ export default function LoginPage() {
       }
 
       if (data?.url) {
-        console.log('[Login] OAuth URL received:', data.url)
+        console.log('[Login] OAuth URL received, length:', data.url.length)
         
         if (isMobile) {
-          // Send OAuth request to mobile app
-          console.log('[Login] Sending oauth_request to mobile app')
+          // Send OAuth request to mobile app to open in external browser
+          console.log('[Login] 🚀 Sending oauth_request to mobile app')
           if ((window as any).ReactNativeWebView) {
             (window as any).ReactNativeWebView.postMessage(JSON.stringify({
               type: 'oauth_request',
               url: data.url
             }))
+            console.log('[Login] ✅ Message sent to mobile app')
+          } else {
+            console.error('[Login] ❌ ReactNativeWebView not found!')
           }
         } else {
           // Browser - normal redirect
+          console.log('[Login] Browser redirect')
           window.location.href = data.url
         }
       }

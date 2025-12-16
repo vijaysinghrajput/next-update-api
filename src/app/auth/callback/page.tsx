@@ -160,21 +160,26 @@ export default function AuthCallbackPage() {
                 console.log('[Auth Callback] Session user:', session.user?.email);
                 console.log('[Auth Callback] Using deep link to return to app with session...');
                 
-                // Encode session tokens in URL
+                // Encode session tokens in URL - use proper URL encoding
                 const deepLinkUrl = `nextupdate://auth/callback?` +
                   `access_token=${encodeURIComponent(session.access_token)}&` +
                   `refresh_token=${encodeURIComponent(session.refresh_token)}&` +
-                  `expires_at=${session.expires_at}`;
+                  `expires_at=${session.expires_at}&` +
+                  `user_id=${session.user.id}&` +
+                  `email=${encodeURIComponent(session.user.email || '')}`;
                 
                 console.log('[Auth Callback] Redirecting to deep link...');
                 
-                // Show success message before redirecting
-                setMessage('Authentication successful! Returning to app...')
+                // Show success message
+                setMessage('✅ Authentication successful! Returning to app...')
                 
-                // Try to open deep link
+                // Immediately try to open deep link
+                window.location.href = deepLinkUrl;
+                
+                // Also try after a short delay as fallback
                 setTimeout(() => {
                   window.location.href = deepLinkUrl;
-                }, 500);
+                }, 100);
                 
                 return;
               }
